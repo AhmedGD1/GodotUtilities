@@ -4,6 +4,8 @@ A modular C# utility library for Godot 4, covering combat, physics, animation, p
 
 ---
 
+**Important Note:** Make sure to set GameUtilities.cs script as an autoload before running the game
+
 ## Namespaces
 
 | Namespace | Contents |
