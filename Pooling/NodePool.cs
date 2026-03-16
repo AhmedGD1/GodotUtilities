@@ -113,6 +113,12 @@ public class NodePool<T> where T : Node
         inUse.Clear();
     }
 
+    public void Trim(int keepCount)
+    {
+        while (available.Count > keepCount)
+            available.Pop().QueueFree();
+    }
+
     private static void SetVisible(Node node, bool value)
     {
         switch (node)
