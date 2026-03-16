@@ -81,6 +81,12 @@ public class ObjectPool<T>
         inUse.Clear();
     }
 
+    public void Trim(int keepCount)
+    {
+        while (available.Count > keepCount)
+            available.Pop();
+    }
+
     public void Clear()
     {
         available.Clear();
