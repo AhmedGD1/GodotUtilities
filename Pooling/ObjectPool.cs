@@ -62,6 +62,25 @@ public class ObjectPool<T>
             poolable.OnRelease();
     }
 
+    public bool TryRelease(T obj)
+    {
+        if (!inUse.Contains(obj)) 
+            return false;
+        Release(obj);
+        return true;
+    }
+
+    public void ReleaseAll()
+    {
+        foreach (var obj in inUse)
+        {
+            if (obj is IPoolable poolable)
+                poolable.OnRelease();
+            available.Push(obj);
+        }
+        inUse.Clear();
+    }
+
     public void Clear()
     {
         available.Clear();
