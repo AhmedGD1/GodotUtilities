@@ -100,7 +100,7 @@ public partial class VelocityComponent : Node
         jumpBufferTimer = new Cooldown(jumpBufferTime);
 
         TryUpdateJumpValues();
-        SetGravityActive(controller.MotionMode == CharacterBody2D.MotionModeEnum.Grounded);
+        gravityActive = controller.MotionMode == CharacterBody2D.MotionModeEnum.Grounded;
     }
 
     public override void _PhysicsProcess(double delta)
