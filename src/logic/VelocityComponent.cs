@@ -1,5 +1,6 @@
 using Utilities.Events;
 using Godot;
+using System;
 
 namespace Utilities.Logic;
 
@@ -83,6 +84,7 @@ public partial class VelocityComponent : Node
     private float jumpVelocity;
     private float verticalSpeed;
 
+    private bool gravityActive;
     private bool isGrounded;
     private bool isFalling;
     private bool jumpValuesUpdated;
@@ -98,6 +100,7 @@ public partial class VelocityComponent : Node
         jumpBufferTimer = new Cooldown(jumpBufferTime);
 
         TryUpdateJumpValues();
+        SetGravityActive(controller.MotionMode == CharacterBody2D.MotionModeEnum.Grounded);
     }
 
     public override void _PhysicsProcess(double delta)
@@ -106,7 +109,9 @@ public partial class VelocityComponent : Node
         jumpBufferTimer.Tick(delta);
 
         float currentGravity = isFalling ? fallGravity : jumpGravity;
-        controller.ApplyGravity(currentGravity * gravityMultiplier, delta, maxFallSpeed);
+
+        if (gravityActive)
+            controller.ApplyGravity(currentGravity * gravityMultiplier, delta, maxFallSpeed);
 
         bool wasGrounded = isGrounded;
 
@@ -301,6 +306,14 @@ public partial class VelocityComponent : Node
 
     public bool IsGrounded()                     => isGrounded;
     public bool IsFalling()                      => isFalling;
+
+    public void SetGravityActive(bool value)
+    {
+        if (controller.MotionMode == CharacterBody2D.MotionModeEnum.Floating)
+            throw new Exception("[VelocityComponent] trying to change gravity active although gravity isn't required for floating mode");
+        
+        gravityActive = value;
+    }
 
     #endregion
 }
