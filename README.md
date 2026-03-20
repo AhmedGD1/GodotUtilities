@@ -15,11 +15,114 @@ A modular C# utility library for Godot 4, covering combat, physics, animation, p
 | `Utilities.Logic` | VelocityComponent, Physics2D |
 | `Utilities.FSM` | StateMachine, State, Transition |
 | `Utilities.Pooling` | NodePool, ObjectPool |
-| `Utilities.InputBuffering` | InputBuffer |
+| `Utilities.Inputs` | InputBuffer |
 
 ---
 
 ## Modules
+
+### Node Injection
+
+In C#, "@onready" doesn't exist, so the only way is to handle nodes initializing in the _Ready() method.
+This System allows you to call the [NodeRef] attribute to automatically find node in children (recusive)
+or find it using custom path.
+
+```csharp
+
+    // uses recusive search to find it in children
+    [NodeRef] private AnimatedSprite2D animatedSprite;
+    [NodeRef] private VelocityComponent velocityComponent;
+
+    // custom path
+    [NodeRef("%AnimationPlayer")]
+    private AnimationPlayer animationPlayer;
+
+    [NodeRef("UI/Healthbar")]
+    private ProgressBar healthbar;
+
+    public override void _Ready()
+    {
+        this.InjectNodes(); // required;
+    }
+
+```
+---
+
+### Event Bus
+
+A lightweight, decoupled event system.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `EventBus.cs` | Core dispatch — add listeners, trigger events, remove listeners |
+| `EventSubscriber.cs` | Reflection-based auto-wiring via `WireEvents()` |
+| `EventAttribute.cs` | `[EventHandler]` attribute for marking subscriber methods |
+
+## Defining Events
+
+Events are plain types. `record struct` is the recommended default — immutable, stack-allocated, and clean to declare:
+
+```csharp
+public record struct PlayerDied(int Score, float TimeAlive);
+public record struct EnemySpawned(int EnemyId, Vector2 Position);
+public record struct GameStarted();
+```
+
+Use `record` (class) only when the payload is large or contains reference types.
+
+---
+
+Mark methods with `[EventHandler]` and call `this.WireEvents()` in `_Ready`. The event type is inferred from the method parameter — no extra configuration needed for most cases.
+
+Register listeners explicitly in `_Ready`. Best for high-frequency events or nodes where you need fine-grained control over lifetime.
+
+```csharp
+using Utilities.Events;
+
+public partial class HUD : Node
+{
+    public override void _Ready()
+    {
+        // Listener is auto-removed when this node exits the tree
+        EventBus.AddListener<PlayerDied>(OnPlayerDied, owner: this);
+        EventBus.AddListener<GameStarted>(OnGameStarted, owner: this);
+    }
+
+    private void OnPlayerDied(PlayerDied e)
+        => GD.Print($"Player died with score {e.Score}");
+
+    private void OnGameStarted(GameStarted e)
+        => GD.Print("Game started");
+}
+```
+
+```csharp
+using Utilities.Events;
+
+public partial class HUD : Node
+{
+    public override void _Ready() => this.WireEvents();
+
+    // Event type inferred from parameter
+    [EventHandler]
+    private void OnPlayerDied(PlayerDied e)
+        => GD.Print($"Player died with score {e.Score}");
+
+    // Explicit type — required when the method has no parameter
+    [EventHandler(typeof(GameStarted))]
+    private void OnGameStarted()
+        => GD.Print("Game started");
+
+    // Fires once then auto-removes itself
+    [EventHandler(Once = true)]
+    private void OnFirstKill(EnemySpawned e)
+        => GD.Print("First kill!");
+}
+```
+
+---
 
 ### Combat
 
@@ -31,9 +134,9 @@ A component-based hit/hurt system. Attach `HealthComponent` and `HurtboxComponen
 
 // Manually damage an entity
 var data = new DamageData(source, damage: 10f, DamageType.Physical, knockback: Vector2.Zero);
-healthComponent.TakeDamage(data);
+healthComponent.TakeDamage(data); // returns true on success
 
-// Resistances and immunity
+// Resistances and immunity (could be assigned in the inspector)
 healthComponent.SetResistance(DamageType.Ranged, 0.5f); // 50% ranged resistance
 healthComponent.AddImmunity(DamageType.Poison);
 
@@ -44,6 +147,12 @@ healthComponent.MakeInvincible(1.5f);
 healthComponent.Damaged  += (source, amount) => { };
 healthComponent.Died     += (source) => { };
 healthComponent.Healed   += (amount) => { };
+healthComponent.Revived  += () => { };
+healthComponent.HealthChanged => (prev, current) => { };
+healthComponent.MaxHealthChanged => (prev, current) => { };
+
+// called when take damage returns false (failure) due to invincibility or immunity
+healthComponent.DamagePrevented += () => { };
 ```
 
 ---
@@ -113,20 +222,26 @@ A full-featured 2D movement component with coyote time, jump buffering, and conf
 // In _PhysicsProcess
 velocityComponent.Accelerate(direction, dt);        // move at max speed
 velocityComponent.AccelerateWithSpeed(dir, dt, 200f);
+velocityComponent.AccelerateScaled(dir, dt, 1.5f); // move with a scaled speed (max speed * scale)
 velocityComponent.Decelerate(dt);
 
 // Jumping
 velocityComponent.BufferJump();                     // call on jump input pressed
-velocityComponent.TryJump();                        // call in physics update
+
+// call in physics update
+velocityComponent.TryJump(); // returns true if player is grounded, has extra jumps or has a coyote jump                
+velocityComponnet.TryJumpBuffered(); // same the previous one but buffer jump included
 
 // Gravity
-velocityComponent.SetGravityActive(false);          // disable gravity (floating mode)
+velocityComponent.SetGravityActive(false);          // disable gravity
 velocityComponent.SwitchGravity();                  // flip up direction
 
-// Signals
-velocityComponent.Landed  += () => { };
-velocityComponent.Fell    += () => { };
-velocityComponent.Jumped  += (count) => { };
+// Events
+velocityComponent.Landed;
+velocityComponent.Fell;
+velocityComponent.Jumped;
+velocityComponent.GravitySwitched;
+velocityComponent.MotionModeSwitched;
 ```
 
 ---
@@ -163,8 +278,8 @@ tween.OnComplete(() => QueueFree());
 **TweenVirtual** — drive arbitrary values with a tween, without needing a Godot property path:
 
 ```csharp
-TweenVirtual.Float(0f, 1f, 0.5f, value => material.SetShaderParameter("alpha", value));
-TweenVirtual.Vector2(start, end, 1f, pos => myNode.Position = pos);
+TweenVirtual.Float(this, 0f, 1f, 0.5f, value => material.SetShaderParameter("alpha", value));
+TweenVirtual.Vector2(this, start, end, 1f, pos => myNode.Position = pos);
 ```
 
 ---
@@ -200,7 +315,7 @@ Static raycast helpers. Call `Physics2D.UpdateSpaceState(GetViewport())` once (e
 ```csharp
 Physics2D.UpdateSpaceState(GetViewport());
 
-if (Physics2D.Raycast(GlobalPosition, Vector2.Down, maxDistance: 200f, out var hit, layers: 1))
+if (Physics2D.Raycast(GlobalPosition, Vector2.Down, maxDistance: 200f, out var hit, collisionMask))
 {
     GD.Print(hit.Collider.Name);
     GD.Print(hit.Distance);
@@ -285,6 +400,7 @@ node.GetMouseDirection();
 **`NodeExtensions`**
 ```csharp
 node.GetChildOfType<HealthComponent>();
+node.GetChildOfTypeRecusive<VelocityComponent>();
 node.GetParentOfType<Player>();
 node.DeleteChildren();
 ```
@@ -292,7 +408,7 @@ node.DeleteChildren();
 **`AnimatedSprite2DExtensions`**
 ```csharp
 sprite.PlayIfNotAlready("run");
-sprite.OnAnimationFinished(() => fsm.TryTransitionTo(PlayerState.Idle));
+sprite.PlayIfExist("attack");
 await sprite.WaitToFinish();
 ```
 
@@ -300,6 +416,18 @@ await sprite.WaitToFinish();
 ```csharp
 direction.RotatedDegrees(45f);
 pos.IsWithinDistance(target, 100f);
+var particlesDir = dir.ToVector3XZ();
+```
+
+**`TweenExtensions`**
+```csharp
+CreateTween().TweenTypewriter(..);
+CreateTween().TweenShake(..);
+CreateTween().TweenPunch(..);
+CreateTween().TweenFlicker(..);
+CreateTween().TweenOrbit(..);
+
+etc..
 ```
 
 ---
