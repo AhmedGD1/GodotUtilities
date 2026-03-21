@@ -1,4 +1,3 @@
-using System.Linq;
 using Godot;
 
 namespace Utilities.Combat;
@@ -10,35 +9,28 @@ public partial class HitboxComponent : Area2D
 
     [Export] public HealthComponent.DamageType damageType = HealthComponent.DamageType.Physical;
 
-    [Export(PropertyHint.Range, "1, 1000")] private float damage = 1f;
-    [Export(PropertyHint.Range, "0, 1000")] private float knockbackForce;
+    [Export(PropertyHint.Range, "1, 1000")] public float damage = 1f;
+    [Export(PropertyHint.Range, "0, 1000")] public float knockbackForce;
 
-    private CollisionShape2D[] collisions;
+    private CollisionShape2D collision;
 
     public bool Enabled { get; private set; }
 
     public override void _Ready()
-    {   
-        InitializeCollisions();
+    { 
         AreaEntered += OnAreaEntered;
-    }
-
-    public void InitializeCollisions()
-    {
-        collisions = (CollisionShape2D[])GetChildren().ToArray();
+        collision    = this.GetChildOfType<CollisionShape2D>();
     }
 
     public void Enable()
     {
-        foreach (var collision in collisions) 
-            collision.SetDeferred("disabled", false);
+        collision.SetDeferred("disabled", false);
         Enabled = true;
     }  
 
     public void Disable()
     {
-        foreach (var collision in collisions) 
-            collision.SetDeferred("disabled", true);
+        collision.SetDeferred("disabled", true);
         Enabled = false;
     }  
 

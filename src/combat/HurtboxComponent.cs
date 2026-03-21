@@ -1,4 +1,3 @@
-using System.Linq;
 using System;
 using Godot;
 
@@ -10,7 +9,7 @@ public partial class HurtboxComponent : Area2D
     [Export] private HealthComponent healthComponent;
     [Export] private KnockbackComponent knockbackComponent;
 
-    private CollisionShape2D[] collisions;
+    private CollisionShape2D collision;
 
     public bool Enabled { get; private set; }
 
@@ -19,7 +18,7 @@ public partial class HurtboxComponent : Area2D
         if (healthComponent is null)
             throw new Exception("[HurtboxComponent] health component is not assigned in the inspector");
 
-        InitializeCollisions();
+        collision = this.GetChildOfType<CollisionShape2D>();
     }
 
     public void ReceiveDamage(DamageData data)
@@ -28,22 +27,15 @@ public partial class HurtboxComponent : Area2D
             knockbackComponent?.ApplyKnockback(data.Knockback);
     }
 
-    public void InitializeCollisions()
-    {
-        collisions = (CollisionShape2D[])GetChildren().ToArray();
-    }
-
     public void Enable()
     {
-        foreach (var collision in collisions) 
-            collision.SetDeferred("disabled", false);
+        collision.SetDeferred("disabled", false);
         Enabled = true;
     }  
 
     public void Disable()
     {
-        foreach (var collision in collisions) 
-            collision.SetDeferred("disabled", true);
+        collision.SetDeferred("disabled", true);
         Enabled = false;
     }  
 }
