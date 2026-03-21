@@ -43,7 +43,7 @@ public static class TweenExtensions
 
     public static PropertyTweener TweenPosition(this Tween tween, GodotObject target, Vector2 to, float duration) =>
         tween.TweenProperty(target, PROPERTY_POSITION, to, duration);
-    
+
     public static PropertyTweener TweenGlobalPosition(this Tween tween, GodotObject target, Vector2 to, float duration) =>
         tween.TweenProperty(target, PROPERTY_GLOBAL_POSITION, to, duration);
 
@@ -60,7 +60,7 @@ public static class TweenExtensions
 
     public static PropertyTweener TweenScale(this Tween tween, GodotObject target, Vector2 scale, float duration) =>
         tween.TweenProperty(target, PROPERTY_SCALE, scale, duration);
-    
+
     #endregion
 
     #region Squish
@@ -81,23 +81,9 @@ public static class TweenExtensions
         return tween;
     }
 
-    public static Tween TweenSquish3D(this Tween tween, GodotObject target, float duration, float ratio = 0.2f, SquishDir dir = SquishDir.Up)
-    {
-        float stepDuration = duration / 3f;
-
-        Vector3 up   = new Vector3(1f - ratio, 1f + ratio, 1f - ratio);
-        Vector3 down = new Vector3(1f + ratio, 1f - ratio, 1f + ratio);
-
-        tween.TweenProperty(target, PROPERTY_SCALE, dir == SquishDir.Up ? up : down, stepDuration);
-        tween.TweenProperty(target, PROPERTY_SCALE, dir == SquishDir.Down ? down : up, stepDuration);
-        tween.TweenProperty(target, PROPERTY_SCALE, Vector3.One, stepDuration);
-
-        return tween;
-    }
-
     #endregion
 
-    #region Fade 
+    #region Fade
 
     public static PropertyTweener TweenFade(this Tween tween, GodotObject target, float value, float duration) =>
         tween.TweenProperty(target, PROPERTY_MODULATE_ALPHA, value, duration);
@@ -124,54 +110,94 @@ public static class TweenExtensions
     #endregion
 
     #region Shake
- 
-    public static Tween TweenShake(this Tween tween, Node2D target, float duration, float strength = 10f, float speed = 8f)
+
+    public static Tween TweenShakePosition(this Tween tween, Node2D target, float duration, float strength = 10f)
     {
         var shaker = ShakePositionTweener.Get();
-        shaker.Setup(target, strength, speed);
- 
+        shaker.Setup(target, strength);
         tween.TweenMethod(Callable.From<float>(shaker.Tick), 0f, 1f, duration);
- 
         return tween;
     }
- 
-    public static Tween TweenShake(this Tween tween, Node3D target, float duration, float strength = 10f, float speed = 8f)
+
+    public static Tween TweenShakeRotation(this Tween tween, Node2D target, float duration, float strength = 0.5f)
     {
-        var shaker = ShakePosition3DTweener.Get();
-        shaker.Setup(target, strength, speed);
- 
+        var shaker = ShakeRotationTweener.Get();
+        shaker.Setup(target, strength);
         tween.TweenMethod(Callable.From<float>(shaker.Tick), 0f, 1f, duration);
- 
         return tween;
     }
- 
-    #endregion
- 
-    #region Punch
- 
-    public static Tween TweenPunch(this Tween tween, Node2D target, float duration, Vector2 position = default, Vector2 scale = default)
+    
+    public static Tween TweenShakePosition(this Tween tween, Control target, float duration, float strength = 10f)
     {
-        var punch = PunchTweener2D.Get();
-        punch.Setup(target, position, scale);
- 
-        tween.TweenMethod(Callable.From<float>(punch.Tick), 0f, 1f, duration);
- 
+        var shaker = ShakePositionTweener.Get();
+        shaker.Setup(target, strength);
+        tween.TweenMethod(Callable.From<float>(shaker.Tick), 0f, 1f, duration);
         return tween;
     }
- 
-    public static Tween TweenPunch(this Tween tween, Node3D target, float duration, Vector3 position = default, Vector3 scale = default)
+
+    public static Tween TweenShakeRotation(this Tween tween, Control target, float duration, float strength = 0.5f)
     {
-        var punch = PunchTweener3D.Get();
-        punch.Setup(target, position, scale);
- 
-        tween.TweenMethod(Callable.From<float>(punch.Tick), 0f, 1f, duration);
- 
+        var shaker = ShakeRotationTweener.Get();
+        shaker.Setup(target, strength);
+        tween.TweenMethod(Callable.From<float>(shaker.Tick), 0f, 1f, duration);
         return tween;
     }
- 
+
     #endregion
 
-    #region Wiggle 
+    #region Punch
+
+    public static Tween TweenPunchPosition(this Tween tween, Node2D target, float duration, Vector2 amount)
+    {
+        var punch = PunchPositionTweener.Get();
+        punch.Setup(target, amount);
+        tween.TweenMethod(Callable.From<float>(punch.Tick), 0f, 1f, duration);
+        return tween;
+    }
+
+    public static Tween TweenPunchScale(this Tween tween, Node2D target, float duration, Vector2 amount)
+    {
+        var punch = PunchScaleTweener.Get();
+        punch.Setup(target, amount);
+        tween.TweenMethod(Callable.From<float>(punch.Tick), 0f, 1f, duration);
+        return tween;
+    }
+
+    public static Tween TweenPunchRotation(this Tween tween, Node2D target, float duration, float amount)
+    {
+        var punch = PunchRotationTweener.Get();
+        punch.Setup(target, amount);
+        tween.TweenMethod(Callable.From<float>(punch.Tick), 0f, 1f, duration);
+        return tween;
+    }
+
+    public static Tween TweenPunchPosition(this Tween tween, Control target, float duration, Vector2 amount)
+    {
+        var punch = PunchPositionTweener.Get();
+        punch.Setup(target, amount);
+        tween.TweenMethod(Callable.From<float>(punch.Tick), 0f, 1f, duration);
+        return tween;
+    }
+
+    public static Tween TweenPunchScale(this Tween tween, Control target, float duration, Vector2 amount)
+    {
+        var punch = PunchScaleTweener.Get();
+        punch.Setup(target, amount);
+        tween.TweenMethod(Callable.From<float>(punch.Tick), 0f, 1f, duration);
+        return tween;
+    }
+
+    public static Tween TweenPunchRotation(this Tween tween, Control target, float duration, float amount)
+    {
+        var punch = PunchRotationTweener.Get();
+        punch.Setup(target, amount);
+        tween.TweenMethod(Callable.From<float>(punch.Tick), 0f, 1f, duration);
+        return tween;
+    }
+
+    #endregion
+
+    #region Wiggle
 
     public static Tween TweenWiggle(this Tween tween, GodotObject target, float degrees, float duration)
     {
@@ -218,14 +244,21 @@ public static class TweenExtensions
 
     public static MethodTweener TweenOrbit(this Tween tween, Node2D target, Vector2 center, float radius, float duration, bool clockwise = true)
     {
-        var orbitTweener = OrbitTweener.Get();
-        orbitTweener.Setup(target, center, radius, clockwise ? 1f : -1f);
-        return tween.TweenMethod(Callable.From<float>(orbitTweener.Tick), 0f, 1f, duration);
+        var orbit = OrbitTweener.Get();
+        orbit.Setup(target, center, radius, clockwise ? 1f : -1f);
+        return tween.TweenMethod(Callable.From<float>(orbit.Tick), 0f, 1f, duration);
+    }
+
+    public static MethodTweener TweenOrbit(this Tween tween, Control target, Vector2 center, float radius, float duration, bool clockwise = true)
+    {
+        var orbit = OrbitTweener.Get();
+        orbit.Setup(target, center, radius, clockwise ? 1f : -1f);
+        return tween.TweenMethod(Callable.From<float>(orbit.Tick), 0f, 1f, duration);
     }
 
     #endregion
 
-    #region Typewriter 
+    #region Typewriter
 
     public static PropertyTweener TweenTypewriter(this Tween tween, Label label, float duration) =>
         tween.TweenProperty(label, PROPERTY_VISIBLE_RATIO, 1f, duration).From(0f);
@@ -279,11 +312,11 @@ public static class TweenExtensions
     #region Other
 
     public static void KillIfValid(this Tween tween)
-    {   
+    {
         if (GodotObject.IsInstanceValid(tween) && tween.IsValid())
             tween.Kill();
     }
-    
+
     #endregion
 
     #region Transitions & Ease
@@ -301,28 +334,28 @@ public static class TweenExtensions
     public static Tween Elastic(this Tween tween) => tween.SetTrans(Tween.TransitionType.Elastic);
     public static Tween Cubic(this Tween tween)   => tween.SetTrans(Tween.TransitionType.Cubic);
 
-    public static Tween EaseIn(this Tween tween)    => tween.SetEase(Tween.EaseType.In); 
-    public static Tween EaseOut(this Tween tween)   => tween.SetEase(Tween.EaseType.Out); 
-    public static Tween EaseOutIn(this Tween tween) => tween.SetEase(Tween.EaseType.OutIn); 
-    public static Tween EaseInOut(this Tween tween) => tween.SetEase(Tween.EaseType.InOut); 
-    
-    public static PropertyTweener Linear(this PropertyTweener propertytweener)  => propertytweener.SetTrans(Tween.TransitionType.Linear);
-    public static PropertyTweener Sine(this PropertyTweener propertytweener)    => propertytweener.SetTrans(Tween.TransitionType.Sine);
-    public static PropertyTweener Back(this PropertyTweener propertytweener)    => propertytweener.SetTrans(Tween.TransitionType.Back);
-    public static PropertyTweener Bounce(this PropertyTweener propertytweener)  => propertytweener.SetTrans(Tween.TransitionType.Bounce);
-    public static PropertyTweener Circ(this PropertyTweener propertytweener)    => propertytweener.SetTrans(Tween.TransitionType.Circ);
-    public static PropertyTweener Spring(this PropertyTweener propertytweener)  => propertytweener.SetTrans(Tween.TransitionType.Spring);
-    public static PropertyTweener Quad(this PropertyTweener propertytweener)    => propertytweener.SetTrans(Tween.TransitionType.Quad);
-    public static PropertyTweener Quart(this PropertyTweener propertytweener)   => propertytweener.SetTrans(Tween.TransitionType.Quart);
-    public static PropertyTweener Expo(this PropertyTweener propertytweener)    => propertytweener.SetTrans(Tween.TransitionType.Expo);
-    public static PropertyTweener Quint(this PropertyTweener propertytweener)   => propertytweener.SetTrans(Tween.TransitionType.Quint);
-    public static PropertyTweener Elastic(this PropertyTweener propertytweener) => propertytweener.SetTrans(Tween.TransitionType.Elastic);
-    public static PropertyTweener Cubic(this PropertyTweener propertytweener)   => propertytweener.SetTrans(Tween.TransitionType.Cubic);
+    public static Tween EaseIn(this Tween tween)    => tween.SetEase(Tween.EaseType.In);
+    public static Tween EaseOut(this Tween tween)   => tween.SetEase(Tween.EaseType.Out);
+    public static Tween EaseOutIn(this Tween tween) => tween.SetEase(Tween.EaseType.OutIn);
+    public static Tween EaseInOut(this Tween tween) => tween.SetEase(Tween.EaseType.InOut);
 
-    public static PropertyTweener EaseIn(this PropertyTweener tween)    => tween.SetEase(Tween.EaseType.In); 
-    public static PropertyTweener EaseOut(this PropertyTweener tween)   => tween.SetEase(Tween.EaseType.Out); 
-    public static PropertyTweener EaseOutIn(this PropertyTweener tween) => tween.SetEase(Tween.EaseType.OutIn); 
-    public static PropertyTweener EaseInOut(this PropertyTweener tween) => tween.SetEase(Tween.EaseType.InOut); 
+    public static PropertyTweener Linear(this PropertyTweener t)  => t.SetTrans(Tween.TransitionType.Linear);
+    public static PropertyTweener Sine(this PropertyTweener t)    => t.SetTrans(Tween.TransitionType.Sine);
+    public static PropertyTweener Back(this PropertyTweener t)    => t.SetTrans(Tween.TransitionType.Back);
+    public static PropertyTweener Bounce(this PropertyTweener t)  => t.SetTrans(Tween.TransitionType.Bounce);
+    public static PropertyTweener Circ(this PropertyTweener t)    => t.SetTrans(Tween.TransitionType.Circ);
+    public static PropertyTweener Spring(this PropertyTweener t)  => t.SetTrans(Tween.TransitionType.Spring);
+    public static PropertyTweener Quad(this PropertyTweener t)    => t.SetTrans(Tween.TransitionType.Quad);
+    public static PropertyTweener Quart(this PropertyTweener t)   => t.SetTrans(Tween.TransitionType.Quart);
+    public static PropertyTweener Expo(this PropertyTweener t)    => t.SetTrans(Tween.TransitionType.Expo);
+    public static PropertyTweener Quint(this PropertyTweener t)   => t.SetTrans(Tween.TransitionType.Quint);
+    public static PropertyTweener Elastic(this PropertyTweener t) => t.SetTrans(Tween.TransitionType.Elastic);
+    public static PropertyTweener Cubic(this PropertyTweener t)   => t.SetTrans(Tween.TransitionType.Cubic);
+
+    public static PropertyTweener EaseIn(this PropertyTweener t)    => t.SetEase(Tween.EaseType.In);
+    public static PropertyTweener EaseOut(this PropertyTweener t)   => t.SetEase(Tween.EaseType.Out);
+    public static PropertyTweener EaseOutIn(this PropertyTweener t) => t.SetEase(Tween.EaseType.OutIn);
+    public static PropertyTweener EaseInOut(this PropertyTweener t) => t.SetEase(Tween.EaseType.InOut);
 
     #endregion
 }
@@ -358,7 +391,7 @@ public static class TweenVirtual
         tween.TweenMethod(Callable.From(action), from, to, duration);
         return tween;
     }
-    
+
     public static Tween Color(Node caller, Color from, Color to, float duration, Action<Color> action)
     {
         Tween tween = caller.CreateTween();
