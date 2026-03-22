@@ -121,18 +121,11 @@ public class NodePool<T> where T : Node
 
     private static void SetActive(Node node, bool value)
     {
-        node.SetProcess(value);
-        node.SetPhysicsProcess(value);
-        node.SetProcessInput(value);
-
         switch (node)
         {
             case CanvasItem ci:  ci.Visible  = value; break;
             case Node3D n3d:    n3d.Visible  = value; break;
         }
     }
-
-
-
 }
 
