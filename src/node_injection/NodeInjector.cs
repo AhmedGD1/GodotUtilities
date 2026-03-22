@@ -57,7 +57,7 @@ public static class NodeWiring
             if (type.IsAssignableFrom(child.GetType()))
                 return child;
 
-            var result = FindFirstChildOfType(parent, type);
+            var result = FindFirstChildOfType(child, type);
             
             if (result != null)
                 return result;
