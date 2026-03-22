@@ -6,7 +6,7 @@ using Godot;
 
 namespace Utilities;
 
-public static class NodeWiring
+public static class NodeInjector
 {
     // safe under parallel scene loading
     private static readonly ConcurrentDictionary<Type, NodeMember[]> cache = new();
