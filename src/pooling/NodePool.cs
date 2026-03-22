@@ -42,7 +42,7 @@ public class NodePool<T> where T : Node
     private T CreateNew()
     {
         var instance = prefab.Instantiate<T>();
-        SetVisible(instance, false);
+        SetActive(instance, false);
         parent.AddChildDeferred(instance);
         return instance;
     }
@@ -59,7 +59,7 @@ public class NodePool<T> where T : Node
             return null;
         }
 
-        SetVisible(node, true);
+        SetActive(node, true);
         inUse.Add(node);
 
         if (node is IPoolable poolable)
@@ -78,7 +78,7 @@ public class NodePool<T> where T : Node
         inUse.Remove(node);
         available.Push(node);
 
-        SetVisible(node, false);
+        SetActive(node, false);
 
         if (node is IPoolable poolable)
             poolable.OnRelease();
@@ -96,7 +96,7 @@ public class NodePool<T> where T : Node
     {
         foreach (var node in inUse)
         {
-            SetVisible(node, false);
+            SetActive(node, false);
             if (node is IPoolable poolable)
                 poolable.OnRelease();
             available.Push(node);
@@ -119,17 +119,16 @@ public class NodePool<T> where T : Node
             available.Pop().QueueFree();
     }
 
-    private static void SetVisible(Node node, bool value)
+    private static void SetActive(Node node, bool value)
     {
+        node.SetProcess(value);
+        node.SetPhysicsProcess(value);
+        node.SetProcessInput(value);
+
         switch (node)
         {
-            case CanvasItem ci:
-                ci.Visible = value;
-                break;
-            
-            case Node3D n3d:
-                n3d.Visible = value;
-                break;
+            case CanvasItem ci:  ci.Visible  = value; break;
+            case Node3D n3d:    n3d.Visible  = value; break;
         }
     }
 
