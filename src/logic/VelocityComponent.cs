@@ -53,8 +53,11 @@ public partial class VelocityComponent : Node
     /// <param name="JumpsUsed">Number of jumps consumed since last landing.</param>
     public record struct Jumped(int JumpsUsed);
 
-    /// <summary>Fired on the frame the character transitions from grounded to falling.</summary>
+    /// <summary>Fired on the frame the character starts falling, from any cause.</summary>
     public record struct Fell();
+
+    /// <summary>Fired on the frame the character transitions from grounded to falling without jumping.</summary>
+    public record struct FellOffEdge();
 
     /// <summary>Fired on the frame the character lands after being airborne.</summary>
     public record struct Landed();
@@ -193,6 +196,7 @@ public partial class VelocityComponent : Node
     private bool useGravity = true;
     private bool floatingMode;
     private bool wasGrounded;
+    private bool wasFalling;
     private bool isGrounded;
     private bool isFalling;
     private bool reachedApex;
@@ -216,6 +220,7 @@ public partial class VelocityComponent : Node
         jumpBufferTimer.Tick(delta);
 
         wasGrounded = isGrounded;
+        wasFalling  = isFalling;
 
         ApplyGravity(delta);
         MoveAndSlide();
@@ -226,8 +231,8 @@ public partial class VelocityComponent : Node
         isGrounded = controller.IsOnFloor();
         isFalling  = !isGrounded && fallSpeed > FALL_THRESHOLD;
 
-        CheckStates();
         CheckApex();
+        CheckStates();
     }
 
     #region Internal
@@ -241,7 +246,17 @@ public partial class VelocityComponent : Node
 
     private void CheckStates()
     {
-        if (wasGrounded && isFalling)   EventBus.Trigger<Fell>();
+        if (!wasFalling && isFalling)
+        {
+            EventBus.Trigger<Fell>();   
+
+            if (!reachedApex)
+            {
+                EventBus.Trigger<FellOffEdge>();
+                ConsumeJump();
+            }
+        }
+
         if (wasGrounded && !isGrounded) AcquireCoyote();
 
         if (!wasGrounded && isGrounded)
@@ -397,24 +412,29 @@ public partial class VelocityComponent : Node
         float currentVertical = velocity.Dot(controller.UpDirection);
         velocity += controller.UpDirection * (jumpSpeed - currentVertical);
 
+        bool hadCoyote = HasCoyote();
+
         ConsumeBufferedJump();
         ConsumeCoyote();
 
-        jumpsUsed++;
+        // FellOffEdge already consumed the ground jump slot via ConsumeJump(),
+        // so coyote jumps don't increment — they spend the pre-consumed slot.
+        if (!hadCoyote)
+            jumpsUsed++;
         EventBus.Trigger(new Jumped(jumpsUsed));
     }
 
     /// <summary>Returns true if a coyote time window is currently active.</summary>
-    public bool HasCoyote()       => !coyoteTimer.IsReady;
+    public bool HasCoyote()                   => !coyoteTimer.IsReady;
 
     /// <summary>Returns true if a buffered jump input is currently pending.</summary>
-    public bool HasBufferedJump() => !jumpBufferTimer.IsReady;
+    public bool HasBufferedJump()             => !jumpBufferTimer.IsReady;
 
     /// <summary>Cancels the active coyote window immediately.</summary>
-    public void ConsumeCoyote()       => coyoteTimer.Stop();
+    public void ConsumeCoyote()               => coyoteTimer.Stop();
 
     /// <summary>Cancels the buffered jump input immediately.</summary>
-    public void ConsumeBufferedJump() => jumpBufferTimer.Stop();
+    public void ConsumeBufferedJump()         => jumpBufferTimer.Stop();
 
     /// <summary>Starts a coyote window using the default <see cref="coyoteTime"/> duration.</summary>
     public void AcquireCoyote()               => coyoteTimer.Start(coyoteTime);
@@ -614,6 +634,13 @@ public partial class VelocityComponent : Node
 
     /// <summary>Restores one jump.</summary>
     public void AddJump()                           => AddJump(1);
+    
+    /// <summary>Consumes <paramref name="count"/> of jumps by increasing <c>jumpsUsed</c>. Clamps to <c>maxJumps</c>.</summary>
+    /// <param name="count">Number of jumps to consume.</param>  // ← fix this
+    public void ConsumeJump(int count) => jumpsUsed = Mathf.Min(maxJumps, jumpsUsed + count);
+
+    /// <summary>Consumes one jump.</summary>
+    public void ConsumeJump()                       => ConsumeJump(1);
 
     /// <summary>Re-enables gravity after <see cref="DisableGravity"/> was called.</summary>
     public void EnableGravity()                     => useGravity = true;
@@ -662,6 +689,9 @@ public partial class VelocityComponent : Node
 
     /// <summary>Returns the active gravity state.</summary>
     public GravityState CurrentGravityState()       => gravityState;
+
+    /// <summary>Returns the active fall speed (0 when player is not falling).</summary>
+    public float GetFallSpeed()                     => isFalling ? velocity.Dot(-controller.UpDirection) : 0f;
 
     #endregion
 }
