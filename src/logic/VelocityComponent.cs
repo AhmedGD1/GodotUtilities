@@ -203,6 +203,39 @@ public partial class VelocityComponent : Node
 
     private GravityState gravityState = GravityState.Floor;
 
+    #region Properties
+
+    /// <summary>Returns the number of jumps remaining before landing is required.</summary>
+    public int JumpsRemaining => Mathf.Max(0, maxJumps - jumpsUsed);
+
+    /// <summary>Returns the current mass value.</summary>
+    public float Mass => mass;
+
+    /// <summary>Returns the configured maximum horizontal speed.</summary>
+    public float MaxSpeed => maxSpeed;
+
+    /// <summary>
+    /// Returns current movement speed. In floating mode returns full vector magnitude.
+    /// In standard mode returns absolute horizontal speed only.
+    /// </summary>
+    public float CurrentSpeed  => floatingMode ? velocity.Length() : Mathf.Abs(velocity.X);
+
+    /// <summary>Returns vertical speed projected onto <see cref="CharacterBody2D.UpDirection"/>. Positive = rising, negative = falling.</summary>
+    public float VerticalSpeed => velocity.Dot(controller.UpDirection);
+
+    /// <summary>Returns the current velocity vector in world space.</summary>
+    public Vector2 Velocity => velocity;
+
+    /// <summary>Returns the active gravity state.</summary>
+    public GravityState CurrentGravityState => gravityState;
+
+    /// <summary>Returns the active fall speed (0 when player is not falling).</summary>
+    public float GetFallSpeed => isFalling ? velocity.Dot(-controller.UpDirection) : 0f;
+
+    public float FallGravityMultiplier => fallGravityMultiplier;
+
+    #endregion
+
     /// <inheritdoc/>
     public override void _Ready()
     {
@@ -666,33 +699,11 @@ public partial class VelocityComponent : Node
     /// <summary>Returns true if the character is currently touching a ceiling (or floor when gravity is flipped).</summary>
     public bool IsOnCeiling()                       => controller.IsOnCeiling();
 
-    /// <summary>Returns the number of jumps remaining before landing is required.</summary>
-    public int JumpsRemaining()                     => Mathf.Max(0, maxJumps - jumpsUsed);
-
-    /// <summary>Returns the current mass value.</summary>
-    public float Mass()                             => mass;
-
-    /// <summary>Returns the configured maximum horizontal speed.</summary>
-    public float Maxspeed()                         => maxSpeed;
-
-    /// <summary>
-    /// Returns current movement speed. In floating mode returns full vector magnitude.
-    /// In standard mode returns absolute horizontal speed only.
-    /// </summary>
-    public float CurrentSpeed()                     => floatingMode ? velocity.Length() : Mathf.Abs(velocity.X);
-
-    /// <summary>Returns vertical speed projected onto <see cref="CharacterBody2D.UpDirection"/>. Positive = rising, negative = falling.</summary>
-    public float VerticalSpeed()                    => velocity.Dot(controller.UpDirection);
-
-    /// <summary>Returns the current velocity vector in world space.</summary>
-    public Vector2 GetVelocity()                    => velocity;
-
-    /// <summary>Returns the active gravity state.</summary>
-    public GravityState CurrentGravityState()       => gravityState;
-
-    /// <summary>Returns the active fall speed (0 when player is not falling).</summary>
-    public float GetFallSpeed()                     => isFalling ? velocity.Dot(-controller.UpDirection) : 0f;
+    public float SetFallGravityMultiplier(float value) =>
+        fallGravityMultiplier = Mathf.Max(0, value);
 
     #endregion
+
+
 }
 
