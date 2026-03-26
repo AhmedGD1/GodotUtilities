@@ -230,7 +230,7 @@ public partial class VelocityComponent : Node
     public GravityState CurrentGravityState => gravityState;
 
     /// <summary>Returns the active fall speed (0 when player is not falling).</summary>
-    public float GetFallSpeed => isFalling ? velocity.Dot(-controller.UpDirection) : 0f;
+    public float FallSpeed => isFalling ? velocity.Dot(-controller.UpDirection) : 0f;
 
     public float FallGravityMultiplier => fallGravityMultiplier;
 
