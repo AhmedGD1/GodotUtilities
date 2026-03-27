@@ -1,433 +1,366 @@
 # Godot Utilities — C# Library
 
-A modular C# utility library for Godot 4, covering combat, physics, animation, pooling, tweening, and finite state machines.
-
----
-
-**Important Note:** Make sure to set GameUtilities.cs script as an autoload before running the game
-
-## Namespaces
-
-| Namespace | Contents |
-|---|---|
-| `Utilities` | Extensions, Cooldown, MathUtil, TimerUtil, TweenExtensions |
-| `Utilities.Combat` | HealthComponent, HitboxComponent, HurtboxComponent, KnockbackComponent |
-| `Utilities.Logic` | VelocityComponent, Physics2D |
-| `Utilities.FSM` | StateMachine, State, Transition |
-| `Utilities.Pooling` | NodePool, ObjectPool |
-| `Utilities.Inputs` | InputBuffer |
+A modular collection of gameplay systems and helpers for **Godot 4** projects written in C#. Covers everything from FSMs and UI management to physics queries, object pooling, and combat components — designed to drop in and stay out of your way.
 
 ---
 
 ## Modules
 
-### Node Injection
-
-In C#, "@onready" doesn't exist, so the only way is to handle nodes initializing in the _Ready() method.
-This System allows you to call the [NodeRef] attribute to automatically find node in children (recusive)
-or find it using custom path.
-
-```csharp
-
-    // uses recusive search to find it in children
-    [NodeRef] private AnimatedSprite2D animatedSprite;
-    [NodeRef] private VelocityComponent velocityComponent;
-
-    // custom path
-    [NodeRef("%AnimationPlayer")]
-    private AnimationPlayer animationPlayer;
-
-    [NodeRef("UI/Healthbar")]
-    private ProgressBar healthbar;
-
-    public override void _Ready()
-    {
-        this.InjectNodes(); // required;
-    }
-
-```
----
-
-### Event Bus
-
-A lightweight, decoupled event system.
-
-## Files
-
-| File | Purpose |
+| Namespace | What it covers |
 |---|---|
-| `EventBus.cs` | Core dispatch — add listeners, trigger events, remove listeners |
-| `EventSubscriber.cs` | Reflection-based auto-wiring via `WireEvents()` |
-| `EventAttribute.cs` | `[EventHandler]` attribute for marking subscriber methods |
-
-## Defining Events
-
-Events are plain types. `record struct` is the recommended default — immutable, stack-allocated, and clean to declare:
-
-```csharp
-public record struct PlayerDied(int Score, float TimeAlive);
-public record struct EnemySpawned(int EnemyId, Vector2 Position);
-public record struct GameStarted();
-```
-
-Use `record` (class) only when the payload is large or contains reference types.
+| `Utilities` | Core helpers — math, timers, cooldowns, node injection, extensions |
+| `Utilities.FSM` | Generic finite state machine with transitions, guards, and events |
+| `Utilities.UIManagement` | Stack-based UI manager with transitions and popup support |
+| `Utilities.Pooling` | Generic and Node-specific object pools |
+| `Utilities.Events` | Type-safe global event bus with attribute-based wiring |
+| `Utilities.Logic` | `VelocityComponent`, `Physics2D` raycasting/overlap helpers |
+| `Utilities.Combat` | Health, hitbox, hurtbox, and knockback components |
 
 ---
 
-Mark methods with `[EventHandler]` and call `this.WireEvents()` in `_Ready`. The event type is inferred from the method parameter — no extra configuration needed for most cases.
-
-Register listeners explicitly in `_Ready`. Best for high-frequency events or nodes where you need fine-grained control over lifetime.
-
-```csharp
-using Utilities.Events;
-
-public partial class HUD : Node
-{
-    public override void _Ready()
-    {
-        // Listener is auto-removed when this node exits the tree
-        EventBus.AddListener<PlayerDied>(OnPlayerDied, owner: this);
-        EventBus.AddListener<GameStarted>(OnGameStarted, owner: this);
-    }
-
-    private void OnPlayerDied(PlayerDied e)
-        => GD.Print($"Player died with score {e.Score}");
-
-    private void OnGameStarted(GameStarted e)
-        => GD.Print("Game started");
-}
-```
-
-```csharp
-using Utilities.Events;
-
-public partial class HUD : Node
-{
-    public override void _Ready() => this.WireEvents();
-
-    // Event type inferred from parameter
-    [EventHandler]
-    private void OnPlayerDied(PlayerDied e)
-        => GD.Print($"Player died with score {e.Score}");
-
-    // Explicit type — required when the method has no parameter
-    [EventHandler(typeof(GameStarted))]
-    private void OnGameStarted()
-        => GD.Print("Game started");
-
-    // Fires once then auto-removes itself
-    [EventHandler(Once = true)]
-    private void OnFirstKill(EnemySpawned e)
-        => GD.Print("First kill!");
-}
-```
-
----
-
-### Combat
-
-A component-based hit/hurt system. Attach `HealthComponent` and `HurtboxComponent` to a damageable entity, and `HitboxComponent` to an attack hitbox.
-
-```csharp
-// Deal damage when hitbox overlaps a hurtbox
-// HitboxComponent handles this automatically via AreaEntered
-
-// Manually damage an entity
-var data = new DamageData(source, damage: 10f, DamageType.Physical, knockback: Vector2.Zero);
-healthComponent.TakeDamage(data); // returns true on success
-
-// Resistances and immunity (could be assigned in the inspector)
-healthComponent.SetResistance(DamageType.Ranged, 0.5f); // 50% ranged resistance
-healthComponent.AddImmunity(DamageType.Poison);
-
-// Invincibility frames
-healthComponent.MakeInvincible(1.5f);
-
-// Signals
-healthComponent.Damaged  += (source, amount) => { };
-healthComponent.Died     += (source) => { };
-healthComponent.Healed   += (amount) => { };
-healthComponent.Revived  += () => { };
-healthComponent.HealthChanged => (prev, current) => { };
-healthComponent.MaxHealthChanged => (prev, current) => { };
-
-// called when take damage returns false (failure) due to invincibility or immunity
-healthComponent.DamagePrevented += () => { };
-```
-
----
-
-### Finite State Machine
-
-A generic, enum-keyed FSM with builder-style state and transition setup. Not a Node — instantiate it wherever you need it.
-
-```csharp
-public enum PlayerState { Idle, Run, Jump, Attack }
-
-var fsm = new StateMachine<PlayerState>();
-
-fsm.AddState(PlayerState.Idle)
-    .OnEnter(() => sprite.Play("idle"))
-    .OnUpdate(dt => { if (Input.IsActionPressed("move")) fsm.TryTransitionTo(PlayerState.Run); });
-
-fsm.AddState(PlayerState.Run)
-    .OnEnter(() => sprite.Play("run"))
-    .MinDuration(0.1f);
-
-fsm.AddState(PlayerState.Attack)
-    .OnEnter(() => sprite.Play("attack"))
-    .TimeoutAfter(0.6f, PlayerState.Idle);
-
-// Transitions
-fsm.AddTransition(PlayerState.Idle, PlayerState.Run)
-    .When(() => Input.IsActionPressed("move"));
-
-fsm.AddTransition(PlayerState.Run, PlayerState.Idle)
-    .When(() => !Input.IsActionPressed("move"));
-
-// Event-driven transition
-fsm.AddTransition(PlayerState.Idle, PlayerState.Attack)
-    .OnEvent("attack_pressed");
-
-fsm.SetInitialState(PlayerState.Idle);
-fsm.Start();
-
-// In _Process / _PhysicsProcess
-fsm.UpdateStates(delta);
-
-// Fire an event
-fsm.TriggerEvent("attack_pressed");
-```
-
-**Transition options:**
-
-```csharp
-fsm.AddTransition(from, to)
-    .When(() => condition)           // poll-based condition
-    .IfOnly(() => guard)             // secondary guard (blocks transition if false)
-    .OnEvent("event_name")          // fire-and-forget event trigger
-    .Do(() => callback)             // runs on transition
-    .SetPriority(10)                // higher = checked first
-    .OverrideMinDuration(0.2f)      // per-transition min time
-    .ForceInstant();                // ignore min duration
-```
-
----
-
-### VelocityComponent
-
-A full-featured 2D movement component with coyote time, jump buffering, and configurable gravity. Export `controller` in the inspector, then call from your character script.
-
-```csharp
-// In _PhysicsProcess
-velocityComponent.Accelerate(direction, dt);        // move at max speed
-velocityComponent.AccelerateWithSpeed(dir, dt, 200f);
-velocityComponent.AccelerateScaled(dir, dt, 1.5f); // move with a scaled speed (max speed * scale)
-velocityComponent.Decelerate(dt);
-
-// Jumping
-velocityComponent.BufferJump();                     // call on jump input pressed
-
-// call in physics update
-velocityComponent.TryJump(); // returns true if player is grounded, has extra jumps or has a coyote jump                
-velocityComponnet.TryJumpBuffered(); // same the previous one but buffer jump included
-
-// Gravity
-velocityComponent.SetGravityActive(false);          // disable gravity
-velocityComponent.SwitchGravity();                  // flip up direction
-
-// Events
-velocityComponent.Landed;
-velocityComponent.Fell;
-velocityComponent.Jumped;
-velocityComponent.GravitySwitched;
-velocityComponent.MotionModeSwitched;
-```
-
----
-
-### Tween Extensions
-
-Shorthand methods on `Tween` and `PropertyTweener` to reduce boilerplate. Also adds easing/transition helpers for chaining.
-
-```csharp
-var tween = CreateTween();
-
-tween.TweenFadeIn(sprite, 0.3f).EaseOut();
-tween.TweenShake(camera, duration: 0.4f, strength: 8f);
-tween.TweenPunch(sprite, duration: 0.3f, scale: new Vector2(0.2f, 0.2f));
-tween.TweenSquish2D(sprite, duration: 0.4f);
-tween.TweenWiggle(sprite, degrees: 15f, duration: 0.3f);
-tween.TweenBlink(sprite, blinks: 4);
-tween.TweenOrbit(node, center, radius: 64f, duration: 2f);
-tween.TweenTypewriter(label, duration: 2f);
-tween.TweenCounter(label, from: 0f, to: 100f, duration: 1f);
-tween.TweenShader(material, "dissolve_amount", 1f, duration: 0.5f);
-tween.TweenVolume(audioPlayer, db: -80f, duration: 1f);
-
-// Await completion
-await tween.AwaitAsync();
-
-// Safe kill
-tween.KillIfValid();
-
-// Callback on finish
-tween.OnComplete(() => QueueFree());
-```
-
-**TweenVirtual** — drive arbitrary values with a tween, without needing a Godot property path:
-
-```csharp
-TweenVirtual.Float(this, 0f, 1f, 0.5f, value => material.SetShaderParameter("alpha", value));
-TweenVirtual.Vector2(this, start, end, 1f, pos => myNode.Position = pos);
-```
-
----
-
-### Pooling
-
-**`NodePool<T>`** — for pooling Godot nodes instantiated from a `PackedScene`.
-
-```csharp
-var bulletPool = new NodePool<Bullet>(bulletScene, parent: this, initialSize: 20);
-
-var bullet = bulletPool.Get();
-// ... use bullet ...
-bulletPool.Release(bullet);
-```
-
-Implement `IPoolable` on your node for `OnGet` / `OnRelease` callbacks.
-
-**`ObjectPool<T>`** — for plain C# objects.
-
-```csharp
-var pool = new ObjectPool<MyClass>(() => new MyClass(), initialSize: 10);
-var obj  = pool.Get();
-pool.Release(obj);
-```
-
----
-
-### Physics2D
-
-Static raycast helpers. Call `Physics2D.UpdateSpaceState(GetViewport())` once (e.g. in `_Ready`) before using.
-
-```csharp
-Physics2D.UpdateSpaceState(GetViewport());
-
-if (Physics2D.Raycast(GlobalPosition, Vector2.Down, maxDistance: 200f, out var hit, collisionMask))
-{
-    GD.Print(hit.Collider.Name);
-    GD.Print(hit.Distance);
-}
-```
-
----
-
-### Cooldown
-
-A lightweight struct timer. No heap allocation.
-
-```csharp
-private Cooldown attackCooldown = new Cooldown(0.5f);
-
-// In _Process
-attackCooldown.Tick(delta);
-
-if (attackCooldown.IsReady)
-{
-    attackCooldown.Start();
-    // ... attack ...
-}
-```
-
----
-
-### InputBuffer
-
-Buffers input actions for a short window so inputs aren't dropped between frames.
-
-```csharp
-private InputBuffer buffer = new InputBuffer();
-
-// In _Process
-if (Input.IsActionJustPressed("jump"))
-    buffer.BufferAction("jump", duration: 0.15f);
-
-buffer.Update((float)delta);
-
-// In _PhysicsProcess
-if (buffer.TryConsume("jump"))
-    velocityComponent.Jump();
-```
-
----
+## Core Utilities
 
 ### MathUtil
 
-Common math helpers with a shared `RandomNumberGenerator` instance.
+Static helpers for randomness, interpolation, and probability. All random calls go through a single seeded `RandomNumberGenerator` instance.
 
 ```csharp
-MathUtil.ExponentialLerp(from, to, dt, weight: 10f);
-MathUtil.RandomUnit();                          // random direction Vector2
-MathUtil.RandomInCircle(radius: 50f);
-MathUtil.Chance(0.25f);                         // true 25% of the time
-MathUtil.CoinFlip();
-MathUtil.WeightedPick(("common", 0.7f), ("rare", 0.25f), ("epic", 0.05f));
-MathUtil.Progress(currentHealth, maxHealth);    // 0..1 clamped
+// Frame-rate independent smoothing
+velocity = MathUtil.ExponentialLerp(velocity, target, delta, weight: 12f);
+
+// Random spatial helpers
+Vector2 spawnPoint = MathUtil.RandomInCircle(radius: 80f);
+Vector2 direction  = MathUtil.RandomUnit();
+
+// Probability / picks
+bool   crit   = MathUtil.Chance(0.15f);   // 15% chance
+string rarity = MathUtil.WeightedPick(
+    ("Common",    60f),
+    ("Rare",      30f),
+    ("Legendary", 10f));
+```
+
+### TimerUtil
+
+Thin wrappers around Godot's `SceneTreeTimer` that integrate cleanly with `async/await`.
+
+```csharp
+// Fire-and-forget
+TimerUtil.Wait(1.5f, () => Explode(), this);
+
+// Awaitable — chain multiple delays
+await TimerUtil.WaitAsync(0.3f, this);
+await TimerUtil.WaitAsync(0.3f, this);
+PlaySound();
+```
+
+### Cooldown
+
+A value-type cooldown counter meant to live as a field. No node required.
+
+```csharp
+private Cooldown attackCooldown = new(0.4f);
+
+public override void _Process(double delta)
+{
+    attackCooldown.Tick(delta);
+
+    if (Input.IsActionJustPressed("attack") && attackCooldown.IsReady)
+    {
+        Attack();
+        attackCooldown.Start();
+    }
+}
+```
+
+`Cooldown.Progress` returns `[0, 1]` — feed it directly into a UI progress bar.
+
+---
+
+## Finite State Machine (`Utilities.FSM`)
+
+A generic, data-driven FSM. States are defined in code with fluent builder calls; transitions fire on conditions, external events, or timeouts.
+
+```csharp
+public enum State { Idle, Run, Jump, Attack }
+
+private StateMachine<State> fsm = new();
+
+public override void _Ready()
+{
+    fsm.AddState(State.Idle)
+        .OnEnter(() => PlayAnim("idle"))
+        .MinDuration(0.1f);
+
+    fsm.AddState(State.Run)
+        .OnEnter(() => PlayAnim("run"))
+        .OnUpdate(dt => Move(inputDir, dt));
+
+    fsm.AddState(State.Attack)
+        .OnEnter(() => PlayAnim("attack"))
+        .TimeoutAfter(0.5f, to: State.Idle);
+
+    fsm.AddTransition(State.Idle, State.Run)
+        .When(() => inputDir != Vector2.Zero);
+
+    fsm.AddTransition(State.Run, State.Idle)
+        .When(() => inputDir == Vector2.Zero);
+
+    // Event-driven transition — trigger from anywhere
+    fsm.AddTransition(State.Idle, State.Attack)
+        .OnEvent("attack_pressed");
+
+    fsm.SetInitialState(State.Idle);
+    fsm.Start();
+}
+
+public override void _Process(double delta)
+{
+    fsm.UpdateStates(delta);
+}
+
+// Elsewhere:
+fsm.TriggerEvent("attack_pressed");
+```
+
+**Transition options**
+
+| Method | Effect |
+|---|---|
+| `.When(Func<bool>)` | Condition checked every frame |
+| `.IfOnly(Func<bool>)` | Guard — blocks the transition even if the condition is true |
+| `.OnEvent(string)` | Fires only when that event is triggered |
+| `.Do(Action)` | Callback run as the transition executes |
+| `.OverrideMinDuration(float)` | Minimum time in the *from* state before the transition can fire |
+| `.ForceInstant()` | Bypasses the min-duration check |
+| `.SetPriority(int)` | Higher priority transitions are evaluated first |
+
+Global transitions (`AddGlobalTransition`) are checked from every state — useful for a universal "died" or "stunned" path.
+
+---
+
+## UI Management (`Utilities.UIManagement`)
+
+A stack-based panel manager. Panels are `UIView` instances registered in a `UIRegistry` resource by string ID. The manager handles instantiation, caching, transitions, and the dimmer overlay for popups.
+
+### UIView
+
+Extend this for each screen or panel:
+
+```csharp
+public partial class PauseMenu : UIView
+{
+    public override void OnInitialize(object payload) { /* setup with payload data */ }
+    public override void OnShow()   { /* started becoming visible */ }
+    public override void OnHide()   { /* finished hiding */ }
+    public override void OnFinalize() { /* cleanup before hide begins */ }
+}
+```
+
+### UIManager
+
+```csharp
+// Show a panel (hides the current one)
+await UIManager.Instance.ShowPanel("hud", TransitionType.Fade);
+
+// Show as a popup (keeps the panel underneath; adds a dimmer)
+await UIManager.Instance.ShowPanel("settings", TransitionType.ScalePop, isPopup: true);
+
+// Pass arbitrary data to OnInitialize
+await UIManager.Instance.ShowPanel("shop", payload: shopData);
+
+// Go back one step
+await UIManager.Instance.GoBack();
+```
+
+**Available transitions:** `None`, `Fade`, `ScalePop`, `SlideLeft`, `SlideRight`, `SlideUp`, `SlideDown`.
+
+Individual views can override their preferred transition via `SetPreferredTransition()`, which takes priority over whatever the caller passes in.
+
+---
+
+## Object Pooling (`Utilities.Pooling`)
+
+Two pool types: one for plain C# objects, one for Godot `Node` subclasses.
+
+```csharp
+// Generic pool
+var dataPool = new ObjectPool<Data>(() => new Data(), initialSize: 20);
+
+Data b = dataPool.Get();
+dataPool.Release(b);
+
+// Node pool — handles scene instantiation and visibility toggling
+var enemyPool = new NodePool<EnemyNode>(enemyScene, parent: this, initialSize: 10);
+
+EnemyNode e = enemyPool.Get();
+enemyPool.Release(e);
+```
+
+Implement `IPoolable` (`OnGet` / `OnRelease`) on pooled types to hook into retrieval and return events. Both pool types support `Prewarm`, `ReleaseAll`, `Trim`, and exhaustion warnings.
+
+---
+
+## Event Bus (`Utilities.Events`)
+
+A global, type-safe pub/sub system. Events are plain structs or record structs — no string keys, no inheritance required.
+
+```csharp
+// Define an event
+public record struct PlayerDied(Vector2 Position);
+
+// Subscribe
+EventBus.AddListener<PlayerDied>(OnPlayerDied, owner: this);
+
+private void OnPlayerDied(PlayerDied evt)
+{
+    SpawnBlood(evt.Position);
+}
+
+// Publish
+EventBus.Trigger(new PlayerDied(GlobalPosition));
+
+// Zero-allocation trigger for parameterless events
+public record struct GamePaused();
+EventBus.Trigger<GamePaused>();
+```
+
+### Attribute wiring
+
+For nodes with many subscriptions, `WireEvents` scans the class for `[EventHandler]` methods and registers them automatically. Subscriptions are cleaned up when the node leaves the tree.
+
+```csharp
+public override void _Ready() => this.WireEvents();
+
+[EventHandler]
+private void OnPlayerDied(PlayerDied evt) { ... }
+
+[EventHandler(Once = true)]
+private void OnFirstKill(EnemyKilled evt) { ... }
 ```
 
 ---
 
-### Extension Methods
+## VelocityComponent (`Utilities.Logic`)
 
-**`CharacterBody2DExtensions`**
+A `Node` child that owns all physics movement for a `CharacterBody2D`. It handles gravity, jumping with coyote time and jump buffering, apex hang, gravity flipping, and explosion knockback — all configurable from the Godot inspector.
+
 ```csharp
-controller.ApplyGravity(gravity, delta, maxFallSpeed: 800f);
-controller.Jump(heightInPixels: 64f);
-controller.AddImpulse(knockbackForce);
-controller.IsFalling();
-controller.IsMoving();
+// In _PhysicsProcess:
+velocity.Move(inputDir, delta);
+
+if (Input.IsActionJustPressed("jump"))
+    velocity.TryJump();
+
+if (Input.IsActionJustReleased("jump"))
+    velocity.CutJump();
 ```
 
-**`Node2DExtensions`**
+**Key features**
+
+- Multi-jump (`SetMaxJumps`)
+- Coyote time and jump buffering (configurable durations)
+- Apex hang — reduced gravity and boosted air control at peak
+- Asymmetric gravity: separate fall multiplier for snappier arcs
+- Gravity flip (`SwitchGravity`, `SetGravityState`)
+- Floating motion mode for top-down or zero-gravity movement
+- Explosion impulse with linear / quadratic / inverse-square falloff and upward bias
+
+Lifecycle events are fired through `EventBus`: `Jumped`, `Landed`, `Fell`, `FellOffEdge`, `ApexReached`, `GravitySwitched`, `MotionModeChanged`.
+
+---
+
+## Physics2D (`Utilities.Logic`)
+
+Static helpers for raycasts and circle overlaps that pool their query parameter objects internally.
+
 ```csharp
-node.FlipTo(velocity);                              // flips scale.X based on direction
-node.SmoothlyLookAt(target, acceleration: 5f, dt);
-node.GetMouseDirection();
+// Raycast — direction + distance
+if (Physics2D.Raycast(origin, Vector2.Down, 32f, out RaycastHit hit))
+    GD.Print(hit.Collider.Name);
+
+// Point-to-point
+Physics2D.Raycast(from, to, out hit, collisionMask: LayerMask.Ground);
+
+// Overlap circle — returns all bodies in radius
+var bodies = Physics2D.OverlapCircle(position, radius: 120f);
 ```
 
-**`NodeExtensions`**
+---
+
+## Combat Components (`Utilities.Combat`)
+
+Three components that compose to form a standard damage pipeline:
+
+**HealthComponent** — exported properties for max health, defense (flat reduction), per-type resistances, and immunity. Emits signals for `HealthChanged`, `Damaged`, `Healed`, `Died`, `Revived`, and `DamagePrevented`. Includes an invincibility timer that blocks incoming damage for a configurable window after a hit.
+
+**HitboxComponent** — an `Area2D` that detects `HurtboxComponent` entries and builds a `DamageData` struct automatically, including knockback direction from the contact geometry.
+
+**HurtboxComponent** — routes incoming `DamageData` to the sibling `HealthComponent` and optionally forwards knockback to a `KnockbackComponent`.
+
+**KnockbackComponent** — adds the knockback vector directly to the owner's `CharacterBody2D.Velocity` and emits `KnockbackStarted`.
+
 ```csharp
-node.GetChildOfType<HealthComponent>();
-node.GetChildOfTypeRecusive<VelocityComponent>();
-node.GetParentOfType<Player>();
-node.DeleteChildren();
+// Typical setup — no code needed beyond inspector wiring.
+// To deal damage manually:
+var data = new DamageData(source: this, damage: 25f,
+    type: HealthComponent.DamageType.Poison,
+    knockback: Vector2.Zero);
+
+hurtbox.ReceiveDamage(data);
 ```
 
-**`AnimatedSprite2DExtensions`**
+---
+
+## Node Utilities
+
+### NodeInjector
+
+Resolves node references at runtime using a `[NodeRef]` attribute, eliminating `GetNode<T>` calls scattered across `_Ready`.
+
 ```csharp
-sprite.PlayIfNotAlready("run");
-sprite.PlayIfExist("attack");
-await sprite.WaitToFinish();
+[NodeRef] private Sprite2D sprite;
+[NodeRef("HitboxComponent")] private HitboxComponent hitbox;
+
+public override void _Ready() => this.InjectNodes();
 ```
 
-**`Vector2Extensions`**
-```csharp
-direction.RotatedDegrees(45f);
-pos.IsWithinDistance(target, 100f);
-var particlesDir = dir.ToVector3XZ();
-```
+Without a path argument, `[NodeRef]` performs a depth-first search for the first child matching the field's type.
 
-**`TweenExtensions`**
-```csharp
-CreateTween().TweenTypewriter(..);
-CreateTween().TweenShake(..);
-CreateTween().TweenPunch(..);
-CreateTween().TweenFlicker(..);
-CreateTween().TweenOrbit(..);
+### Extension methods
 
-etc..
-```
+| Target | Method | Notes |
+|---|---|---|
+| `Node` | `GetChildOfType<T>()` | First matching child, any depth |
+| `Node` | `GetParentOfType<T>()` | Walks up the tree |
+| `Node` | `DeleteChildren()` | Queues all children for deletion |
+| `Node` | `AddChildDeferred(child)` | Safe for physics callbacks |
+| `Node2D` | `FlipTo(direction)` | Flips X scale based on direction |
+| `Node2D` | `SmoothlyLookAt(target, acc, dt)` | Lerped angle tracking |
+| `Node2D` | `GetMouseDirection()` | Normalized direction to cursor |
+| `CharacterBody2D` | `ApplyGravity(g, dt, max)` | Inline gravity helper |
+| `CharacterBody2D` | `Jump(height)` | Physics-correct jump velocity |
+| `CharacterBody2D` | `ApplyKnockbackFrom(source, force)` | Directional knockback |
+| `AnimatedSprite2D` | `PlayIfNotAlready(name)` | Guards against restart |
+| `AnimatedSprite2D` | `PlayIfExist(name)` | Returns false if missing |
+| `AnimatedSprite2D` | `WaitToFinish()` | Awaitable finish signal |
+
+---
+
+## Tween Effects
+
+A suite of pooled tweener objects that run effects through a `Tween` callback. All support both `Node2D` and `Control` targets.
+
+| Tweener | Effect |
+|---|---|
+| `ShakePositionTweener` | Noise-based positional shake with decay |
+| `ShakeRotationTweener` | Sine-based rotation shake with decay |
+| `PunchPositionTweener` | Elastic-out positional punch |
+| `PunchRotationTweener` | Elastic-out rotation punch |
+| `PunchScaleTweener` | Elastic-out scale punch |
+| `FlickerTweener` | Random alpha flicker (e.g. damage flash) |
+| `OrbitTweener` | Circular orbit around a point |
+
+Objects are retrieved from a static pool per type and returned automatically at the end of their duration.
 
 ---
