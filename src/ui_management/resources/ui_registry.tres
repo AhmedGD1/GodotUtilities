@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="UIRegistry" format=3 uid="uid://bxl4ii6mfgdew"]
+
+[ext_resource type="Script" uid="uid://cv4qua6l7m17g" path="res://utilities/src/ui_management/UIRegistry.cs" id="1_8s6r7"]
+
+[sub_resource type="InputEventAction" id="InputEventAction_8s6r7"]
+action = &"ui_cancel"
+
+[resource]
+script = ExtResource("1_8s6r7")
+goBackActions = [SubResource("InputEventAction_8s6r7")]
+metadata/_custom_type_script = "uid://cv4qua6l7m17g"
