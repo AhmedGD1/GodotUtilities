@@ -46,9 +46,6 @@ public partial class VelocityComponent : Node
     /// <summary>Minimum downward speed in pixels/s before a character is considered falling.</summary>
     public const float FALL_THRESHOLD = 0.1f;
 
-    /// <summary>Threshold in pixels/s used to detect the jump apex transition.</summary>
-    public const float APEX_THRESHOLD = 0.1f;
-
     /// <summary>Fired when the character jumps. Carries the total jump count used in the current airborne sequence.</summary>
     /// <param name="JumpsUsed">Number of jumps consumed since last landing.</param>
     public record struct Jumped(int JumpsUsed);
@@ -180,6 +177,7 @@ public partial class VelocityComponent : Node
     [Export(PropertyHint.Range, "50, 1000")]
     private float maxFallSpeed = 300f;
 
+
     private CharacterBody2D controller;
     private Vector2 velocity;
 
@@ -188,6 +186,7 @@ public partial class VelocityComponent : Node
 
     private float airAccelerationBase;
     private float airDecelerationBase;
+    private float weightFactor = 1f;
 
     private float prevVerticalSpeed;
     private float apexHangTimer;
@@ -232,11 +231,20 @@ public partial class VelocityComponent : Node
     /// <summary>Returns the active fall speed (0 when player is not falling).</summary>
     public float FallSpeed => isFalling ? velocity.Dot(-controller.UpDirection) : 0f;
 
+    /// <summary>The active fall gravity multiplier. Values above 1.0 make falls snappier.</summary>
     public float FallGravityMultiplier => fallGravityMultiplier;
+
+    /// <summary>Terminal fall speed in pixels per second. Fall velocity is clamped to this each frame.</summary>
+    public float MaxFallSpeed => maxFallSpeed;
+
+    /// <summary>
+    /// Movement acceleration scale factor. Applied on top of ground and air acceleration weights.
+    /// Use to temporarily slow or boost a character without permanently changing their acceleration stats.
+    /// </summary>
+    public float WeightFactor => weightFactor;
 
     #endregion
 
-    /// <inheritdoc/>
     public override void _Ready()
     {
         controller = GetOwnerOrNull<CharacterBody2D>()
@@ -246,7 +254,6 @@ public partial class VelocityComponent : Node
         airDecelerationBase = airDeceleration;
     }
 
-    /// <inheritdoc/>
     public override void _PhysicsProcess(double delta)
     {
         coyoteTimer.Tick(delta);
@@ -259,10 +266,10 @@ public partial class VelocityComponent : Node
         MoveAndSlide();
 
         Vector2 gravityDir = -controller.UpDirection;
-        float   fallSpeed  = velocity.Dot(gravityDir);
+        float fallSpeed    = velocity.Dot(gravityDir);
 
         isGrounded = controller.IsOnFloor();
-        isFalling  = !isGrounded && fallSpeed > FALL_THRESHOLD;
+        isFalling = !isGrounded && fallSpeed > FALL_THRESHOLD;
 
         CheckApex();
         CheckStates();
@@ -286,11 +293,10 @@ public partial class VelocityComponent : Node
             if (!reachedApex)
             {
                 EventBus.Trigger<FellOffEdge>();
+                AcquireCoyote();
                 ConsumeJump();
             }
         }
-
-        if (wasGrounded && !isGrounded) AcquireCoyote();
 
         if (!wasGrounded && isGrounded)
         {
@@ -303,10 +309,10 @@ public partial class VelocityComponent : Node
     {
         float verticalSpeed = velocity.Dot(controller.UpDirection);
 
-        bool wasGoingDown = prevVerticalSpeed < APEX_THRESHOLD;
-        bool wasGoingUp   = prevVerticalSpeed > APEX_THRESHOLD;
-        bool nowGoingUp   = verticalSpeed     > APEX_THRESHOLD;
-        bool nowGoingDown = verticalSpeed     < APEX_THRESHOLD;
+        bool wasGoingDown = prevVerticalSpeed < 0f;
+        bool wasGoingUp   = prevVerticalSpeed > 0f;
+        bool nowGoingUp   = verticalSpeed     > 0f;
+        bool nowGoingDown = verticalSpeed     <= 0f;
 
         if (!reachedApex && wasGoingUp && nowGoingDown)
         {
@@ -387,7 +393,7 @@ public partial class VelocityComponent : Node
     public void ApplyMovement(Vector2 dir, float dt, float speed, float weight)
     {
         Vector2 desired     = dir.NormalizeIfNotZero() * speed;
-        Vector2 newVelocity = MathUtil.ExponentialLerp(velocity, desired, dt, weight);
+        Vector2 newVelocity = MathUtil.ExponentialLerp(velocity, desired, dt, weight * weightFactor);
 
         if (!floatingMode)
             newVelocity.Y = velocity.Y;
@@ -430,17 +436,19 @@ public partial class VelocityComponent : Node
         velocity -= controller.UpDirection * cut;
     }
 
+
     /// <summary>
-    /// Executes a jump unconditionally. Sets vertical velocity to the exact speed required
-    /// to reach <see cref="jumpHeight"/> pixels. Fires <see cref="Jumped"/> event.
-    /// Use <see cref="TryJump"/> for guarded jumps.
+    /// Executes a jump unconditionally to a custom <paramref name="height"/>.
+    /// Sets vertical velocity to the exact speed required to reach that height.
+    /// Fires <see cref="Jumped"/>. Use <see cref="TryJump"/> for guarded jumps.
     /// </summary>
-    public void Jump()
+    /// <param name="height">Target apex height in pixels.</param>
+    public void Jump(float height)
     {
         apexHangTimer = 0f;
 
-        float gravity   = DEFAULT_GRAVITY * gravityScale;
-        float jumpSpeed = GetJumpVelocity(gravity, jumpHeight);
+        float g         = GetJumpGravity();
+        float jumpSpeed = GetJumpVelocity(g, height);
 
         float currentVertical = velocity.Dot(controller.UpDirection);
         velocity += controller.UpDirection * (jumpSpeed - currentVertical);
@@ -456,6 +464,12 @@ public partial class VelocityComponent : Node
             jumpsUsed++;
         EventBus.Trigger(new Jumped(jumpsUsed));
     }
+
+    /// <summary>
+    /// Executes a jump unconditionally using the configured <see cref="jumpHeight"/>.
+    /// Fires <see cref="Jumped"/>. Use <see cref="TryJump"/> for guarded jumps.
+    /// </summary>
+    public void Jump() => Jump(jumpHeight);
 
     /// <summary>Returns true if a coyote time window is currently active.</summary>
     public bool HasCoyote()                   => !coyoteTimer.IsReady;
@@ -554,11 +568,9 @@ public partial class VelocityComponent : Node
 
         float   dt             = (float)delta;
         Vector2 floorDirection = -controller.UpDirection;
-        float   currentFallSpd = velocity.Dot(floorDirection);
-        bool    currentFalling = currentFallSpd > FALL_THRESHOLD;
 
-        float gravity = DEFAULT_GRAVITY * gravityScale * (currentFalling ? fallGravityMultiplier : 1f);
-        gravity = OnApexTick(gravity, dt);
+        float gravity = GetFallGravity();
+        gravity = TickApexHang(gravity, dt);
 
         velocity += gravity * dt * floorDirection;
 
@@ -567,22 +579,24 @@ public partial class VelocityComponent : Node
             velocity -= floorDirection * (fallSpeed - maxFallSpeed);
     }
 
-    private float OnApexTick(float gravity, float dt)
+    private float TickApexHang(float gravity, float dt)
     {
         if (apexHangTimer > 0f)
         {
             apexHangTimer -= dt;
-            gravity *= apexGravityReduction;
+            UpdateApexAirControl(apexHorizontalBoost);
 
-            airAcceleration = airAccelerationBase * apexHorizontalBoost;
-            airDeceleration = airDecelerationBase * apexHorizontalBoost;
-
-            return gravity;
+            return gravity * apexGravityReduction;
         }
 
-        airAcceleration = airAccelerationBase;
-        airDeceleration = airDecelerationBase;
+        UpdateApexAirControl();
         return gravity;
+    }
+
+    private void UpdateApexAirControl(float boost = 1f)
+    {
+        airAcceleration = airAccelerationBase * boost;
+        airDeceleration = airDecelerationBase * boost;
     }
 
     #endregion
@@ -620,7 +634,8 @@ public partial class VelocityComponent : Node
         {
             GravityState.Floor   => Vector2.Up,
             GravityState.Ceiling => Vector2.Down,
-            _                    => throw new Exception("Invalid Gravity State Operation")
+            _                    => throw new ArgumentOutOfRangeException(
+                                    nameof(state), state, "Invalid GravityState value.")
         };
 
         var oldState = gravityState;
@@ -669,13 +684,15 @@ public partial class VelocityComponent : Node
     public void AddJump()                           => AddJump(1);
     
     /// <summary>Consumes <paramref name="count"/> of jumps by increasing <c>jumpsUsed</c>. Clamps to <c>maxJumps</c>.</summary>
-    /// <param name="count">Number of jumps to consume.</param>  // ← fix this
+    /// <param name="count">Number of jumps to consume.</param>
     public void ConsumeJump(int count) => jumpsUsed = Mathf.Min(maxJumps, jumpsUsed + count);
 
     /// <summary>Consumes one jump.</summary>
     public void ConsumeJump()                       => ConsumeJump(1);
 
     /// <summary>Re-enables gravity after <see cref="DisableGravity"/> was called.</summary>
+    /// <remarks>Has no effect while the controller is in floating motion mode,
+    /// since floating mode bypasses gravity accumulation entirely.</remarks>
     public void EnableGravity()                     => useGravity = true;
 
     /// <summary>Disables gravity accumulation. Velocity retains its current vertical component until manually changed.</summary>
@@ -688,10 +705,10 @@ public partial class VelocityComponent : Node
     public bool IsFalling()                         => isFalling;
 
     /// <summary>Returns true if the character is airborne and moving against the gravity direction.</summary>
-    public bool IsRising()                          => !isGrounded && velocity.Dot(controller.UpDirection) > APEX_THRESHOLD;
+    public bool IsRising()                          => !isGrounded && velocity.Dot(controller.UpDirection) > FALL_THRESHOLD;
 
     /// <summary>Returns true if gravity accumulation is currently active.</summary>
-    public bool GravityActive()                     => useGravity;
+    public bool IsGravityActive()                   => useGravity;
 
     /// <summary>Returns true if the character is currently touching a wall.</summary>
     public bool IsOnWall()                          => controller.IsOnWall();
@@ -699,8 +716,50 @@ public partial class VelocityComponent : Node
     /// <summary>Returns true if the character is currently touching a ceiling (or floor when gravity is flipped).</summary>
     public bool IsOnCeiling()                       => controller.IsOnCeiling();
 
-    public float SetFallGravityMultiplier(float value) =>
-        fallGravityMultiplier = Mathf.Max(0, value);
+    // Utilities region — add above each bare method
+    /// <summary>
+    /// Sets the fall gravity multiplier. Values above 1.0 make falls snappier.
+    /// Clamped to a minimum of 0 to prevent upward gravity inversion.
+    /// </summary>
+    /// <param name="value">The new multiplier. Clamped to [0, ∞).</param>
+    public void SetFallGravityMultiplier(float value) => fallGravityMultiplier = Mathf.Max(0, value);
+
+    /// <summary>
+    /// Sets the terminal fall speed in pixels per second.
+    /// Clamped to a minimum of 0. Set to a high value to effectively disable the cap.
+    /// </summary>
+    /// <param name="value">The new cap in pixels per second. Clamped to [0, ∞).</param>
+    public void SetMaxFallSpeed(float value)          => maxFallSpeed = Mathf.Max(0, value);
+
+    /// <summary>
+    /// Sets the weight factor applied to all acceleration and deceleration calculations.
+    /// Use values below 1.0 to slow movement (e.g. in mud or water) and above 1.0 to boost it.
+    /// Clamped to a minimum of 0.
+    /// </summary>
+    /// <param name="value">The new weight factor. Clamped to [0, ∞).</param>
+    public void SetWeightFactor(float value)          => weightFactor = Mathf.Max(0f, value);
+
+    /// <summary>
+    /// Returns the gravity used when computing jump velocity — <see cref="DEFAULT_GRAVITY"/>
+    /// scaled by <see cref="gravityScale"/>. Does not include <see cref="fallGravityMultiplier"/>.
+    /// </summary>
+    /// <returns>Jump gravity in pixels per second squared.</returns>
+    public float GetJumpGravity()                     => DEFAULT_GRAVITY * gravityScale;
+
+    /// <summary>
+    /// Returns the gravity currently acting on the character based on their fall state.
+    /// When falling, applies <see cref="fallGravityMultiplier"/> on top of the base scaled gravity.
+    /// Reflects current-frame velocity — call each frame for accurate results.
+    /// </summary>
+    /// <returns>Effective gravity in pixels per second squared.</returns>
+    public float GetFallGravity()
+    {
+        Vector2 floorDirection   = -controller.UpDirection;
+        float   currentFallSpeed = velocity.Dot(floorDirection);
+        bool    currentFalling   = currentFallSpeed > FALL_THRESHOLD;
+
+        return DEFAULT_GRAVITY * gravityScale * (currentFalling ? fallGravityMultiplier : 1f);
+    }
 
     #endregion
 
