@@ -2,6 +2,10 @@
 
 A modular collection of gameplay systems and helpers for **Godot 4** projects written in C#. Covers everything from FSMs and UI management to physics queries, object pooling, and combat components — designed to drop in and stay out of your way.
 
+## Important note
+When installing the library manually, make sure to rename the main folder from "GodotUtilities -main" to "GodotUtilities"
+---
+
 ---
 
 ## Modules
