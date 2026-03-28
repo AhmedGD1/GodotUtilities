@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="UIRegistry" format=3 uid="uid://bxl4ii6mfgdew"]
+
+[ext_resource type="Script" uid="uid://cv4qua6l7m17g" path="res://addons/GodotUtilities/src/ui_management/UIRegistry.cs" id="1_8s6r7"]
+
+[resource]
+script = ExtResource("1_8s6r7")
+metadata/_custom_type_script = "uid://cv4qua6l7m17g"
