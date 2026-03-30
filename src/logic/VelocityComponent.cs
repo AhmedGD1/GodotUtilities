@@ -569,7 +569,7 @@ public partial class VelocityComponent : Node
         float   dt             = (float)delta;
         Vector2 floorDirection = -controller.UpDirection;
 
-        float gravity = GetFallGravity();
+        float gravity = GetCurrentGravity();
         gravity = TickApexHang(gravity, dt);
 
         velocity += gravity * dt * floorDirection;
