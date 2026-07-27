@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>GodotUtilities</RootNamespace>
+    <AssemblyName>Saku.GodotUtilities</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="GodotSharp" Version="4.7.1" />
+  </ItemGroup>
+</Project>

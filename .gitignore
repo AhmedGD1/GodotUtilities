@@ -1,0 +1,8 @@
+GodotUtilities/bin/
+GodotUtilities/obj/
+
+.vs/
+.idea/
+*.user
+
+.godot/

@@ -1,0 +1,40 @@
+using Godot;
+
+namespace GodotUtilities;
+
+public static class NodeExtensions
+{   
+    public static bool TryGetChildOfType<T>(this Node node, out T result, bool recursive = false) where T : Node
+    {
+        foreach (var child in node.GetChildren())
+        {
+            if (child is T t)
+            {
+                result = t;
+                return true;
+            }
+
+            if (recursive && child.TryGetChildOfType(out result, recursive: true))
+                return true;
+        }
+
+        result = default;
+        return false;
+    }
+
+    public static T GetChildOfType<T>(this Node node, bool recursive = false) where T : Node
+    {
+        return node.TryGetChildOfType<T>(out var result, recursive) ? result : null;
+    }
+
+    public static IEnumerable<T> GetChildrenOfType<T>(this Node node) where T : Node
+    {
+        return node.GetChildren().OfType<T>();
+    }
+
+    public static void QueueFreeChildren(this Node node)
+    {
+        foreach (var child in node.GetChildren())
+            child.QueueFree();
+    }
+}
