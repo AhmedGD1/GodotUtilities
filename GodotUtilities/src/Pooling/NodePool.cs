@@ -21,7 +21,7 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// <see cref="CreateNew"/> when no free node is available, instead of failing.
     /// Defaults to <c>true</c>.
     /// </summary>
-    public bool Extendable { get; set; } = true;
+    public bool Extendible { get; set; } = true;
 
     /// <summary>The number of nodes currently checked out from the pool.</summary>
     public int ActiveCount => active.Count;
@@ -67,7 +67,7 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
 
     /// <summary>
     /// Attempts to retrieve a node from the pool: a free node if one is available,
-    /// otherwise a newly-instantiated one if <see cref="Extendable"/> is <c>true</c>.
+    /// otherwise a newly-instantiated one if <see cref="Extendible"/> is <c>true</c>.
     /// Free nodes found invalid (freed elsewhere) are discarded first. On success, the
     /// node is marked active (enabled process mode, visible) and
     /// <see cref="IPoolable.OnGet"/> is invoked if implemented.
@@ -80,7 +80,7 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
             free.Pop();
 
         if (free.TryPop(out var result)) node = result;
-        else if (Extendable) node = CreateNew();
+        else if (Extendible) node = CreateNew();
         else
         {
             node = null;

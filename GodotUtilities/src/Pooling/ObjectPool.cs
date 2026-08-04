@@ -10,13 +10,13 @@ namespace GodotUtilities.Pooling;
 /// </summary>
 /// <typeparam name="T">The pooled type.</typeparam>
 /// <param name="factory">Creates a new instance of <typeparamref name="T"/> when the pool needs one.</param>
-/// <param name="extendable">
+/// <param name="extendible">
 /// If <c>true</c> (default), the pool creates new instances via <paramref name="factory"/>
-/// when empty rather than failing. See <see cref="Extendable"/>.
+/// when empty rather than failing. See <see cref="Extendible"/>.
 /// </param>
 /// <param name="onGet">Optional callback invoked with the instance whenever one is retrieved.</param>
 /// <param name="onRelease">Optional callback invoked with the instance whenever one is returned.</param>
-public class ObjectPool<T>(Func<T> factory, bool extendable = true, Action<T> onGet = null, Action<T> onRelease = null)
+public class ObjectPool<T>(Func<T> factory, bool extendible = true, Action<T> onGet = null, Action<T> onRelease = null)
 {
     private readonly HashSet<T> active = [];
     private readonly Stack<T> free = new();
@@ -25,7 +25,7 @@ public class ObjectPool<T>(Func<T> factory, bool extendable = true, Action<T> on
     /// If <c>true</c>, <see cref="TryGet"/> creates a new instance via the pool's factory
     /// when no free instance is available, instead of failing.
     /// </summary>
-    public bool Extendable { get; set; } = extendable;
+    public bool Extendible { get; set; } = extendible;
 
     /// <summary>The number of instances currently checked out from the pool.</summary>
     public int ActiveCount => active.Count;
@@ -50,7 +50,7 @@ public class ObjectPool<T>(Func<T> factory, bool extendable = true, Action<T> on
 
     /// <summary>
     /// Attempts to retrieve an instance from the pool: a free instance if one is available,
-    /// otherwise a newly-created one if <see cref="Extendable"/> is <c>true</c>. Any freed
+    /// otherwise a newly-created one if <see cref="Extendible"/> is <c>true</c>. Any freed
     /// <see cref="GodotObject"/> instances found invalid at the top of the free stack are
     /// discarded first. On success, <see cref="IPoolable.OnGet"/> and the <c>onGet</c>
     /// callback (if provided) are invoked.
@@ -63,7 +63,7 @@ public class ObjectPool<T>(Func<T> factory, bool extendable = true, Action<T> on
             free.Pop();
 
         if (free.TryPop(out var result)) obj = result;
-        else if (Extendable) obj = factory();
+        else if (Extendible) obj = factory();
         else
         {
             obj = default;
