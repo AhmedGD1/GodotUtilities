@@ -19,9 +19,9 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// <summary>
     /// If <c>true</c>, <see cref="TryGet"/> instantiates a new node via
     /// <see cref="CreateNew"/> when no free node is available, instead of failing.
-    /// Defaults to <c>false</c>.
+    /// Defaults to <c>true</c>.
     /// </summary>
-    public bool Extendable { get; set; }
+    public bool Extendable { get; set; } = true;
 
     /// <summary>The number of nodes currently checked out from the pool.</summary>
     public int ActiveCount => active.Count;
