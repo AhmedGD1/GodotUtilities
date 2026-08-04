@@ -56,13 +56,6 @@ public static class TweenExtensions
             tween.Kill();
     }
 
-    public static Tween Rebuild(this Tween tween, Node node)
-    {
-        tween.KillIfValid();
-        tween = node.CreateTween();
-        return tween;
-    }
-
     public static PropertyTweener SetCurveInterpolator(this PropertyTweener tweener, Curve curve) =>
         tweener.SetCustomInterpolator(Callable.From<float, float>(curve.SampleBaked));
     
