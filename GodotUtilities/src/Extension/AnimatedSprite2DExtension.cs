@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class AnimatedSprite2DExtensions
+public static class AnimatedSprite2DExtension
 {
     public static SignalAwaiter WaitToFinish(this AnimatedSprite2D sprite)
     {

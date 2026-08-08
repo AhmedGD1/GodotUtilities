@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class NodeExtensions
+public static class NodeExtension
 {   
     public static bool TryGetChildOfType<T>(this Node node, out T result, bool recursive = false) where T : Node
     {

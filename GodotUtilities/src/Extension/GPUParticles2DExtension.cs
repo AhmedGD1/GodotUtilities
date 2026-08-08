@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class GPUParticles2DExtensions
+public static class GPUParticles2DExtension
 {   
     public static void SetDirection(this GpuParticles2D particles, Vector2 direction)
     {

@@ -1,6 +1,6 @@
 namespace GodotUtilities;
 
-public static class BooleanExtensions
+public static class BooleanExtension
 {
     public static float ToSingle(this bool value) => value ? 1f : 0f;
     

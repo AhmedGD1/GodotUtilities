@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class CharacterBody2DExtensions
+public static class CharacterBody2DExtension
 {
     public static void ApplyGravity(this CharacterBody2D body, double dt,
             float gravity = 980f, float maxFallSpeed = float.PositiveInfinity)

@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class Vector2Extensions
+public static class Vector2Extension
 {
     public static Vector2 RotatedDeg(this Vector2 value, float deg)
     {

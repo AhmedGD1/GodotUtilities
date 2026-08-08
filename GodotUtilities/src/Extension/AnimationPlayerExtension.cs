@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class AnimationPlayerExtensions
+public static class AnimationPlayerExtension
 {
     private static readonly StringName ANIM_RESET = "RESET";
 

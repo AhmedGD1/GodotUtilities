@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class GodotObjectExtensions
+public static class GodotObjectExtension
 {
     public static bool IsNullOrInvalid(this GodotObject obj)
     {

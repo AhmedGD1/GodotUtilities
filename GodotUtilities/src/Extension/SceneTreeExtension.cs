@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class SceneTreeExtensions
+public static class SceneTreeExtension
 {
     public static T GetFirstNodeInGroup<T>(this SceneTree tree, StringName group) where T : Node
     {

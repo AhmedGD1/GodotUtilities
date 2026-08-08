@@ -61,26 +61,6 @@ public static class MathUtil
 
     #endregion
 
-    #region Normalize
-
-    /// <summary>
-    /// Divides <paramref name="value"/> by <paramref name="length"/> and clamps the result to [0, 1].
-    /// </summary>
-    /// <param name="value">The value to normalize.</param>
-    /// <param name="length">The length representing 1.0.</param>
-    public static float Normalize(float value, float length)
-    {
-        return Mathf.Clamp(value / length, 0f, 1f);
-    }
-
-    /// <inheritdoc cref="Normalize(float, float)"/>
-    public static float Normalize(double value, double length)
-    {
-        return (float)Mathf.Clamp(value / length, 0.0, 1.0);
-    }
-
-    #endregion
-
     #region Random
 
     /// <summary>
@@ -100,7 +80,7 @@ public static class MathUtil
     public static bool Chance(float probability)
     {
         if (probability > 1f || probability < 0f)
-            GD.PushWarning("Probability value has to be between [0, 1]");
+            throw new ArgumentOutOfRangeException($"Probability value '{probability}' has to be between [0, 1]");
         return RNG.Randf() < probability;
     }
 

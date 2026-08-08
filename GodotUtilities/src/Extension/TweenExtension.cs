@@ -2,7 +2,7 @@ using Godot;
 
 namespace GodotUtilities;
 
-public static class TweenExtensions
+public static class TweenExtension
 {
     private const string PROPERTY_SCALE = "scale";
     private const string PROPERTY_POSITION = "position";

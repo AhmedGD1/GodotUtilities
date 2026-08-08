@@ -10,7 +10,7 @@ namespace GodotUtilities.Events;
 /// </summary>
 public static class EventBus
 {
-    private static readonly Dictionary<Type, object> _buckets = new();
+    private static readonly Dictionary<Type, object> _buckets = [];
 
     /// <summary>
     /// Subscribes <paramref name="listener"/> to events of type <typeparamref name="T"/>.
