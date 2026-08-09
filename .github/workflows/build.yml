@@ -1,0 +1,34 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    name: Build & Verify Solution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build SourceGenerators
+        run: dotnet build SourceGenerators/SourceGenerators.csproj --configuration Release --no-restore
+
+      - name: Build GodotUtilities
+        run: dotnet build GodotUtilities/GodotUtilities.csproj --configuration Release --no-restore
+
+      - name: Run Tests (if applicable)
+        run: dotnet test --configuration Release --no-build --verbosity normal
