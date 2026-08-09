@@ -1,8 +1,17 @@
+#.Net
 GodotUtilities/bin/
 GodotUtilities/obj/
 
-.vs/
-.idea/
+SourceGenerators/obj/
+SourceGenerators/bin/
+
 *.user
 
-.godot/
+# IDE
+.vs/
+.idea/
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
