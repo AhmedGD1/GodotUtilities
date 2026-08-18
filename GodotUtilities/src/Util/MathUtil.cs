@@ -46,6 +46,13 @@ public static class MathUtil
         float t = 1f - Mathf.Exp(-accel * (float)dt);
         return a.Lerp(b, t);
     }
+    
+    /// <inheritdoc cref="ExpoLerp(float, float, double, float)"/>
+    public static Vector3 ExpoLerp(Vector3 a, Vector3 b, double dt, float accel)
+    {
+        float t = 1f - Mathf.Exp(-accel * (float)dt);
+        return a.Lerp(b, t);
+    }
 
     #endregion
 
@@ -80,7 +87,7 @@ public static class MathUtil
     public static bool Chance(float probability)
     {
         if (probability > 1f || probability < 0f)
-            throw new ArgumentOutOfRangeException($"Probability value '{probability}' has to be between [0, 1]");
+            throw new ArgumentOutOfRangeException(nameof(probability), "has to be between [0, 1]");
         return RNG.Randf() < probability;
     }
 

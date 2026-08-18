@@ -7,7 +7,7 @@ namespace GodotUtilities;
 /// helpers for bulk-registering a folder and loading registered resources by id.
 /// </summary>
 /// <param name="validExtensions">
-/// If provided, restricts <see cref="RegisterFolder"/> to only these file extensions
+/// If provided, restricts <see cref="RegisterDirectory"/> to only these file extensions
 /// (without the leading dot, e.g. <c>"tres"</c>). Files with extensions outside this
 /// set are skipped during folder scans. If <c>null</c>, all extensions are allowed
 /// except those in the built-in excluded set (<c>"uid"</c>, <c>"import"</c>), which
@@ -15,14 +15,14 @@ namespace GodotUtilities;
 /// </param>
 public sealed class AssetRegistry(HashSet<string> validExtensions = null)
 {
-    private static readonly HashSet<string> DefaultExludedExtensions = ["uid", "import"];
+    private static readonly HashSet<string> InvalidExtensions = ["uid", "import"];
     
     private readonly Dictionary<StringName, string> _map = [];
 
     private bool IsSupportedFile(string fileName)
     {
         var extension = fileName.GetExtension().ToLowerInvariant();
-        return !DefaultExludedExtensions.Contains(extension) 
+        return !InvalidExtensions.Contains(extension) 
             && (validExtensions?.Contains(extension) ?? true);
     }
 
@@ -49,15 +49,7 @@ public sealed class AssetRegistry(HashSet<string> validExtensions = null)
     /// <param name="path">The resource path to associate with <paramref name="id"/>.</param>
     public void Register(StringName id, string path)
     {
-        if (_map.TryGetValue(id, out var existing))
-        {
-            GD.PushWarning(
-                $"Asset id '{id}' already exists.\n" +
-                $"Existing: {existing}\n" +
-                $"New: {path}");
-        }
-
-        _map.Add(id, path);
+        _map[id] = path;
     }
 
     /// <summary>
@@ -83,27 +75,16 @@ public sealed class AssetRegistry(HashSet<string> validExtensions = null)
     /// </summary>
     /// <param name="folderPath">The directory path to scan (e.g. <c>res://assets</c>).</param>
     /// <param name="recursive">If <c>true</c>, subdirectories are scanned as well.</param>
-    public void RegisterFolder(string folderPath, bool recursive = false)
+    public void RegisterDirectory(string folderPath, bool recursive = false)
     {
         if (folderPath[^1] != '/')
             folderPath += "/";
-    
-        var entries = ResourceLoader.ListDirectory(folderPath);
-    
-        foreach (var entry in entries)
+
+        FileSystem.ForResourcesInDirectory(folderPath, (file, path) =>
         {
-            if (entry.EndsWith('/'))
-            {
-                if (recursive)
-                    RegisterFolder(folderPath + entry, recursive);
-                continue;
-            }
-    
-            var fullPath = folderPath + entry;
-    
-            if (IsSupportedFile(entry) && ResourceLoader.Exists(fullPath))
-                RegisterAuto(fullPath);
-        }
+            if (IsSupportedFile(file) && ResourceLoader.Exists(path))
+                RegisterAuto(path);
+        }, includeSubdirectories: recursive);
     }
 
     #endregion

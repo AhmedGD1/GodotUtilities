@@ -7,6 +7,8 @@ public static class TweenExtension
     private const string PROPERTY_SCALE = "scale";
     private const string PROPERTY_POSITION = "position";
     private const string PROPERTY_GLOBAL_POSITION = "global_position";
+    private const string PROPERTY_ROTATION = "rotation";
+    private const string PROPERTY_ROTATION_DEGREES = "rotation_degrees";
     private const string PROPERTY_SHADER = "shader_parameter/{0}";
 
     #region Helpers
@@ -78,8 +80,14 @@ public static class TweenExtension
     public static PropertyTweener TweenGlobalPosition(this Tween tween, GodotObject target, Variant to, double duration) =>
         tween.TweenProperty(target, PROPERTY_GLOBAL_POSITION, to, duration);
 
-    public static PropertyTweener TweenScale(this Tween tween, GodotObject target, Vector2 value, double duration) =>
+    public static PropertyTweener TweenScale(this Tween tween, GodotObject target, Variant value, double duration) =>
         tween.TweenProperty(target, PROPERTY_SCALE, value, duration);
+
+    public static PropertyTweener TweenRotation(this Tween tween, GodotObject target, Variant value, double duration) =>
+        tween.TweenProperty(target, PROPERTY_ROTATION, value, duration);
+        
+    public static PropertyTweener TweenRotationDegrees(this Tween tween, GodotObject target, Variant value, double duration) =>
+        tween.TweenProperty(target, PROPERTY_ROTATION_DEGREES, value, duration);
 
     #endregion
 }

@@ -210,9 +210,6 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
             if (!GodotObject.IsInstanceValid(node))
                 continue;
 
-            if (node is IPoolable poolable)
-                poolable.OnRelease();
-
             onTrim?.Invoke(node);
             node.CallDeferred(Node.MethodName.QueueFree);
         }

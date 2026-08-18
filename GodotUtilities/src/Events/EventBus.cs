@@ -17,10 +17,12 @@ public static class EventBus
     {
         if (!_buckets.TryGetValue(typeof(T), out var raw))
             _buckets[typeof(T)] = raw = new TypedBucket<T>();
+            
         return (TypedBucket<T>)raw;
     }
 
     #region Register
+    
     /// <summary>
     /// Subscribes <paramref name="listener"/> to events of type <typeparamref name="T"/>.
     /// Pass <paramref name="owner"/> to auto-remove when the node leaves the scene tree.
@@ -39,9 +41,11 @@ public static class EventBus
             return true;
         return false;
     }
+    
     #endregion
 
     #region Trigger
+    
     /// <summary>Fires all listeners registered for <typeparamref name="T"/>.</summary>
     public static void Trigger<T>(T evt)
     {
@@ -56,9 +60,11 @@ public static class EventBus
 
     /// <summary>Fires using a default instance. <typeparamref name="T"/> needs a parameterless constructor.</summary>
     public static void Trigger<T>() where T : new() => Trigger(new T());
+
     #endregion
 
     #region Queries
+    
     /// <summary>Clears all listeners across every event type.</summary>
     public static void Clear()
     {
@@ -72,9 +78,11 @@ public static class EventBus
         if (_buckets.TryGetValue(typeof(T), out var raw))
             ((TypedBucket<T>)raw).Clear();
     }
+
     #endregion
 
     #region For Source Generator
+
     public static bool TryBeginWiring(Node node)
     {
         if (!_wired.Add(node))
@@ -86,5 +94,6 @@ public static class EventBus
         node.TreeExiting += () => _wired.Remove(node);
         return true;
     }
+    
     #endregion
 }

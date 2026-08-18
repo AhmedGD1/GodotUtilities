@@ -34,7 +34,9 @@ internal sealed class TypedBucket<T> : IClearable
     {
         if (_firing)
         {
-            if (!_set.Contains(h)) return false;
+            if (!_set.Contains(h))
+                return false;
+                
             _pending.Add(h);
             return true;
         }
@@ -43,7 +45,9 @@ internal sealed class TypedBucket<T> : IClearable
 
     private bool DoRemove(Action<T> h)
     {
-        if (!_set.Remove(h)) return false;
+        if (!_set.Remove(h)) 
+            return false;
+        
         for (int i = 0; i < _count; i++)
         {
             if (_handlers[i] != h) continue;
@@ -58,11 +62,21 @@ internal sealed class TypedBucket<T> : IClearable
     public void Fire(T evt)
     {
         _firing = true;
-        try { for (int i = 0; i < _count; i++) _handlers[i]?.Invoke(evt); }
+        try
+        {
+            for (int i = 0; i < _count; i++) 
+                _handlers[i]?.Invoke(evt);
+        }
         finally
         {
             _firing = false;
-            if (_pending.Count > 0) { foreach (var h in _pending) DoRemove(h); _pending.Clear(); }
+            
+            if (_pending.Count > 0)
+            {
+                foreach (var h in _pending)
+                    DoRemove(h); 
+                _pending.Clear();
+            }
         }
     }
 

@@ -51,36 +51,46 @@ public static class FileSystem
         return results;
     }
 
-    /// <summary>
-    /// Scans <paramref name="path"/> for resources of type <typeparamref name="T"/> without
-    /// loading them, returning their resource paths only.
-    /// </summary>
-    /// <typeparam name="T">The <see cref="Resource"/> type to filter by.</typeparam>
-    /// <param name="path">The directory path to scan (e.g. <c>res://assets/icons</c>).</param>
-    /// <param name="recursive">If <c>true</c>, subdirectories are scanned as well.</param>
-    /// <returns>A list of resource paths matching type <typeparamref name="T"/>.</returns>
-    public static List<string> ScanFolder<T>(string path, bool recursive = false) where T : Resource
+    public static List<T> InstantiateScenesInPath<T>(string dirPath) where T : Node
     {
-        if (path[^1] != '/')
-            path += "/";
-    
-        var results = new List<string>();
-        var entries = ResourceLoader.ListDirectory(path);
-    
-        foreach (var entry in entries)
+        if (dirPath[^1] != '/')
+            dirPath += "/";
+
+        var scenes = new List<T>();
+        var files = ResourceLoader.ListDirectory(dirPath);
+
+        foreach (var fileName in files)
         {
-            if (entry.EndsWith('/'))
+            if (fileName.EndsWith('/')) continue;
+
+            var fullPath = $"{dirPath}{fileName}";
+            
+            if (GD.Load(fullPath) is PackedScene packedScene)
             {
-                if (recursive)
-                    results.AddRange(ScanFolder<T>(path + entry, recursive));
+                var scene = packedScene.Instantiate();
+                if (scene is T node)
+                    scenes.Add(node);
+                else
+                    scene.QueueFree();
+            }
+        }
+
+        return scenes;
+    }
+    
+    public static void ForResourcesInDirectory(string path, Action<string, string> fileAction, bool includeSubdirectories = false)
+    {
+        var files = ResourceLoader.ListDirectory(path);
+
+        foreach (var file in files)
+        {
+            if (file.EndsWith('/') && includeSubdirectories)
+            {
+                ForResourcesInDirectory($"{path}/{file}", fileAction, includeSubdirectories);
                 continue;
             }
-    
-            var fullPath = path + entry;
-            if (ResourceLoader.Exists(fullPath, typeof(T).Name))
-                results.Add(fullPath);
+
+            fileAction(file, $"{path}/{file}");
         }
-    
-        return results;
     }
 }

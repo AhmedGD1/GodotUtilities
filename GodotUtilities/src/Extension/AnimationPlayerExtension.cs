@@ -6,18 +6,23 @@ public static class AnimationPlayerExtension
 {
     private static readonly StringName ANIM_RESET = "RESET";
 
-    public static void ResetAndPlay(this AnimationPlayer animationPlayer, StringName animation, double customBlend = -1, float customSpeed = 1f, bool fromEnd = false)
+    public static void ResetAndPlay(this AnimationPlayer player, StringName animation, double customBlend = -1, float customSpeed = 1f, bool fromEnd = false)
     {
-        animationPlayer.Play(ANIM_RESET);
-        animationPlayer.Seek(0, true);
-        animationPlayer.Play(animation, customBlend, customSpeed, fromEnd);
+        player.Play(ANIM_RESET);
+        player.Seek(0, true);
+        player.Play(animation, customBlend, customSpeed, fromEnd);
     }
 
-    public static bool PlayIfExist(this AnimationPlayer animationPlayer, StringName animation, double customBlend = -1, float customSpeed = 1f, bool fromEnd = false)
+    public static bool PlayIfExist(this AnimationPlayer player, StringName animation, double customBlend = -1, float customSpeed = 1f, bool fromEnd = false)
     {
-        if (!animationPlayer.HasAnimation(animation))
+        if (!player.HasAnimation(animation))
             return false;
-        animationPlayer.Play(animation, customBlend, customSpeed, fromEnd);
+        player.Play(animation, customBlend, customSpeed, fromEnd);
         return true;
+    }
+
+    public static SignalAwaiter WaitToFinish(this AnimationPlayer player)
+    {
+        return player.ToSignal(player, AnimationMixer.SignalName.AnimationFinished);
     }
 }

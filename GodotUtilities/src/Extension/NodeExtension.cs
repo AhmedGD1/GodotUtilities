@@ -3,7 +3,19 @@ using Godot;
 namespace GodotUtilities;
 
 public static class NodeExtension
-{   
+{
+    public static T GetNode<T>(this Node node) where T : Node
+    {
+        string name = typeof(T).Name;
+        return node.GetNode<T>(name);
+    }
+    
+    public static T GetAutoload<T>(this Node node) where T : Node
+    {
+        string path = $"/root/{typeof(T).Name}";
+        return node.GetNode<T>(path);
+    }
+    
     public static bool TryGetChildOfType<T>(this Node node, out T result, bool recursive = false) where T : Node
     {
         foreach (var child in node.GetChildren())
@@ -36,5 +48,15 @@ public static class NodeExtension
     {
         foreach (var child in node.GetChildren())
             child.QueueFree();
+    }
+
+    public static void AddChildDeferred(this Node node, Node child)
+    {
+        node.CallDeferred(Node.MethodName.AddChild, child);
+    }
+
+    public static bool IsCurrentScene(this Node node)
+    {
+        return node.GetTree().CurrentScene.SceneFilePath == node.SceneFilePath;
     }
 }

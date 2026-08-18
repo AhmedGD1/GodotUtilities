@@ -23,9 +23,7 @@ public static class GPUParticles2DExtension
             return;
         }
 
-        particles.Emitting = true;
-        particles.Restart();
-
+        EmitFresh(particles);
         await particles.GetTree().Wait(duration);
 
         if (GodotObject.IsInstanceValid(particles))
