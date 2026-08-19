@@ -45,19 +45,10 @@ using GodotUtilities.Pooling; // ObjectPool<T>, NodePool<T>, IPoolable
 
 > **Updating:** since this is a `ProjectReference` and not a package, updating just means running `git pull` inside wherever you cloned it — no reinstall needed.
 
-## Docs
+## Features
 
-- [Extensions](Docs/extensions.md) — extension methods on `Node`, `Vector2`, `Tween`, and other common Godot types
-- [EventBus](Docs/event-bus.md) — static pub/sub event bus, plus `[EventHandler]` declarative wiring
-- [PhysicsQuery2D](Docs/physics-query.md) — static 2D physics-space queries (raycasts, shape/circle checks and overlaps)
-- [WeightedLootTable\<T\>](Docs/weighted-loot-table.md) — weighted random-selection table
-- [ObjectPool\<T\> / NodePool\<T\>](Docs/pooling.md) — generic object pooling, including scene-tree-aware node pooling
-- [InputBuffer](Docs/input-buffer.md) — short-lived buffered input windows (e.g. early jump presses)
-- [AssetRegistry](Docs/asset-registry.md) — maps friendly ids to resource paths
-- [FileSystem](Docs/file-system.md) — discover and bulk-load `Resource` files by type
-- [Countdown](Docs/countdown.md) — minimal manually-ticked countdown timer struct
-- [MathUtil](Docs/math-util.md) — framerate-independent lerping, clamping, and RNG helpers
-
-## License
+- extension methods on `Node`, `Vector2`, `Tween`, `World Raycast`, and other common Godot types.
+- static pub/sub event bus, plus `[EventHandler]` declarative wiring.
+- generic object pooling, including scene-tree-aware node pooling and other features you can discover.
 
 MIT — see [LICENSE](LICENSE).
