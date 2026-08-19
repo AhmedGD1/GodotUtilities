@@ -4,7 +4,7 @@ namespace GodotUtilities;
 
 public static class GPUParticles3DExtension
 {
-    public static async void EmitTimeout(this GpuParticles3D particles, double duration)
+    public static async Task EmitTimeout(this GpuParticles3D particles, double duration)
     {
         if (particles.OneShot)
         {

@@ -71,14 +71,6 @@ public static class MathUtil
     #region Random
 
     /// <summary>
-    /// Returns a random 2D unit direction vector using <see cref="RNG"/>.
-    /// </summary>
-    public static Vector2 RandomDirection()
-    {
-        return Vector2.FromAngle(RNG.Randf() * Mathf.Tau);
-    }
-
-    /// <summary>
     /// Returns the result of a fair coin flip
     /// </summary>
     /// <returns><c>true</c> or <c>false</c> with equal probability.</returns>

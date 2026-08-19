@@ -15,7 +15,7 @@ public static class PackedSceneExtension
         return null;
     }
 
-    public static T InstantiateOnNode<T>(this PackedScene scene, Node parent, bool deferredAddChild = false) where T : Node
+    public static T Instantiate<T>(this PackedScene scene, Node parent, bool deferredAddChild = false) where T : Node
     {
         var instance = scene.InstantiateOrFree<T>();
 

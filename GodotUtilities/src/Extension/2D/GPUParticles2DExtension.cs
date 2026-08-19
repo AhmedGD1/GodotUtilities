@@ -3,7 +3,7 @@ using Godot;
 namespace GodotUtilities;
 
 public static class GPUParticles2DExtension
-{   
+{
     public static void SetDirection(this GpuParticles2D particles, Vector2 direction)
     {
         if (particles.ProcessMaterial is not ParticleProcessMaterial material)
@@ -11,11 +11,11 @@ public static class GPUParticles2DExtension
             GD.PushWarning("[GPUParticles2D Extensions] particles doesn't have a process material.");
             return;
         }
-        
+
         material.Direction = new Vector3(direction.X, direction.Y, 0f);
     }
 
-    public static async void EmitTimeout(this GpuParticles2D particles, double duration)
+    public static async Task EmitTimeout(this GpuParticles2D particles, double duration)
     {
         if (particles.OneShot)
         {
