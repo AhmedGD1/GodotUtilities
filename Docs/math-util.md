@@ -19,7 +19,6 @@ var pick = MathUtil.PickRandom("a", "b", "c");
 
 - `ExpoLerp(a, b, dt, accel)` — exponential interpolation toward a target that behaves consistently regardless of frame rate (unlike a naive `Lerp(a, b, factor)` per frame). Available for `float` and `Vector2`.
 - `Clamp01(value)` — shorthand for clamping to `[0, 1]` (`float`/`double`).
-- `RandomDirection()` — a random 2D unit vector.
 - `CoinFlip()` — 50/50 `bool`.
 - `Chance(probability)` — `true` with the given probability (`0..1`); throws `ArgumentOutOfRangeException` outside that range.
 - `PickRandom(items)` — picks a random element from a `params T[]` or `List<T>`. Assumes a non-empty collection.
