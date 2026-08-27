@@ -59,16 +59,3 @@ using GodotUtilities.Pooling; // ObjectPool<T>, NodePool<T>, IPoolable
 - **`MathUtil`** — framerate-independent exponential lerp, clamping, and RNG helpers.
 
 MIT — see [LICENSE](LICENSE).
-
-## Docs
-
-- [AssetRegistry](asset-registry.md)
-- [Countdown](countdown.md)
-- [EventBus](event-bus.md)
-- [FileSystem](file-system.md)
-- [InputBuffer](input-buffer.md)
-- [MathUtil](math-util.md)
-- [Node Wiring (`[Node]`/`WireNodes()`)](node-wiring.md)
-- [Pooling (`ObjectPool<T>` / `NodePool<T>`)](pooling.md)
-- [SimpleStateMachine](simple-state-machine.md)
-- [WeightedLootTable](weighted-loot-table.md)
