@@ -8,8 +8,7 @@ public static class AnimationPlayerExtension
 
     public static void ResetAndPlay(this AnimationPlayer player, StringName animation, double customBlend = -1, float customSpeed = 1f, bool fromEnd = false)
     {
-        player.Play(ANIM_RESET);
-        player.Seek(0, true);
+        player.PlayReset();
         player.Play(animation, customBlend, customSpeed, fromEnd);
     }
 
@@ -19,6 +18,12 @@ public static class AnimationPlayerExtension
             return false;
         player.Play(animation, customBlend, customSpeed, fromEnd);
         return true;
+    }
+
+    public static void PlayReset(this AnimationPlayer player, double customBlend = -1, float customSpeed = 1f, bool fromEnd = false)
+    {
+        player.Play(ANIM_RESET);
+        player.Seek(0, true);
     }
 
     public static SignalAwaiter WaitToFinish(this AnimationPlayer player)

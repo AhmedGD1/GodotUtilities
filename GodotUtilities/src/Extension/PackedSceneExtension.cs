@@ -14,16 +14,4 @@ public static class PackedSceneExtension
         GD.PushWarning($"Could not instance PackedScene {scene} as {typeof(T).Name}");
         return null;
     }
-
-    public static T Instantiate<T>(this PackedScene scene, Node parent, bool deferredAddChild = false) where T : Node
-    {
-        var instance = scene.InstantiateOrFree<T>();
-
-        if (deferredAddChild)
-            parent.CallDeferred(Node.MethodName.AddChild, instance);
-        else
-            parent.AddChild(instance);
-        
-        return instance;
-    }
 }

@@ -14,6 +14,11 @@ public static class Vector2Extension
         return v1.DistanceSquaredTo(v2) <= (distance * distance);
     }
 
+    public static float AngleDegrees(this Vector2 value)
+    {
+        return Mathf.RadToDeg(value.Angle());
+    }
+
     public static Vector3 ToVector3(this Vector2 value) => new(value.X, value.Y, 0f);
 
     public static Vector3 ToVector3XZ(this Vector2 value) => new(value.X, 0f, value.Y);
