@@ -51,8 +51,10 @@ A few rules the generator enforces, each with its own compiler diagnostic if bro
 - `[EventHandler]` methods must be instance methods (not `static`), and must take zero parameters or exactly one (the event).
 - Only one `[EventHandler]` method per event type is allowed per class.
 - Nested classes aren't supported — move the class to namespace scope, or wire events manually via `EventBus.AddListener`.
-- Calling `WireEvents()` twice on the same node instance is a no-op past the first call (a warning is pushed, not an exception).
+- Calling `WireEvents()` twice on the same node instance is a no-op past the first call (`EventBus` pushes an error, not an exception, so the game keeps running).
 
 > `[EventHandler]`/`WireEvents()` requires the `SourceGenerators` project to be referenced as an analyzer — see the [setup guide](../README.md#setup). Without it, `EventBus.AddListener`/`RemoveListener` still work fine on their own.
+
+Looking to skip declarative event wiring and go straight to scene-tree lookups instead? See [Node Wiring](node-wiring.md) for the `[Node]`/`WireNodes()` counterpart, which resolves fields from child nodes rather than events.
 
 [← back to README](../README.md)

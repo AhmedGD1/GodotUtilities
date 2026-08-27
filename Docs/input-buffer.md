@@ -21,7 +21,7 @@ public override void _PhysicsProcess(double delta)
 }
 ```
 
-- `BufferAction(name, duration)` — starts (or refreshes) a buffer window for an action name. Throws `ArgumentOutOfRangeException` if `duration <= 0`.
+- `BufferAction(name, duration)` — starts (or refreshes) a buffer window for an action name (`StringName`). Throws `ArgumentOutOfRangeException` if `duration <= 0`.
 - `TryConsume(name)` — if the action is still within its buffer window, removes and returns `true`; otherwise `false`.
 - `Has(name)` — checks validity without consuming.
 - `Tick(dt)` — must be called once per frame/physics tick to count down and expire buffered actions.

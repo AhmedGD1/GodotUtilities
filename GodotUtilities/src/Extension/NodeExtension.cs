@@ -54,9 +54,4 @@ public static class NodeExtension
     {
         node.CallDeferred(Node.MethodName.AddChild, child);
     }
-
-    public static bool IsCurrentScene(this Node node)
-    {
-        return node.GetTree().CurrentScene.SceneFilePath == node.SceneFilePath;
-    }
 }

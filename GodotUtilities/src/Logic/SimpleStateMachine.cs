@@ -1,8 +1,10 @@
 namespace GodotUtilities;
 
-public sealed class SimpleStateMachine<T> where T : Enum
+public partial class SimpleStateMachine<T> where T : Enum
 {
-    public event Action<T, T> StateChanged;
+    public delegate void StateChangedEventHandler(T previousState, T currentState);
+    
+    public event StateChangedEventHandler StateChanged;
 
     private readonly Dictionary<T, State<T>> states = [];
 

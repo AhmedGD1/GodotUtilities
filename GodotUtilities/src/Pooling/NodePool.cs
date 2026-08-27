@@ -125,14 +125,13 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
         if (!active.Contains(node))
             return false;
 
-        SetActive(node, false);
-
-        active.Remove(node);
-        free.Push(node);
-
         if (node is IPoolable poolable)
             poolable.OnRelease();
-
+            
+        active.Remove(node);
+        SetActive(node, false);
+        free.Push(node);
+        
         return true;
     }
 

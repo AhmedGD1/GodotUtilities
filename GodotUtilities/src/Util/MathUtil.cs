@@ -46,7 +46,7 @@ public static class MathUtil
         float t = 1f - Mathf.Exp(-accel * (float)dt);
         return a.Lerp(b, t);
     }
-    
+
     /// <inheritdoc cref="ExpoLerp(float, float, double, float)"/>
     public static Vector3 ExpoLerp(Vector3 a, Vector3 b, double dt, float accel)
     {
@@ -69,6 +69,11 @@ public static class MathUtil
     #endregion
 
     #region Random
+
+    public static Vector2 GetRandomDirection()
+    {
+        return Vector2.FromAngle(RNG.Randf() * Mathf.Tau);
+    }
 
     /// <summary>
     /// Returns the result of a fair coin flip
