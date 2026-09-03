@@ -15,7 +15,11 @@ public partial class Player : CharacterBody2D
     // Explicit path when the name doesn't match the node's own name
     [Node("UI/HealthBar")] private ProgressBar HealthBar;
 
-    public override void _Ready() => WireNodes();
+    public override void _Notification(int what)
+    {
+        if (what == NotificationSceneInstantiated) 
+            WireNodes();
+    }
 }
 ```
 

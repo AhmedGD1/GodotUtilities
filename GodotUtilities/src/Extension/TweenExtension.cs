@@ -5,13 +5,19 @@ namespace GodotUtilities;
 public static class TweenExtension
 {
     #region Properties
-    
+
+    private const string PROPERTY_COLOR = "color";
     private const string PROPERTY_SCALE = "scale";
     private const string PROPERTY_SHADER = "shader_parameter/{0}";
+    private const string PROPERTY_MODULATE = "modulate";
     private const string PROPERTY_POSITION = "position";
     private const string PROPERTY_ROTATION = "rotation";
+    private const string PROPERTY_SELF_MODULATE = "self_modulate";
     private const string PROPERTY_GLOBAL_POSITION = "global_position";
     private const string PROPERTY_ROTATION_DEGREES = "rotation_degrees";
+    private const string PROPERTY_OFFSET_TRANSFORM_POS = "offset_transform_position";
+    private const string PROPERTY_OFFSET_TRANSFORM_ROT = "offset_transform_rotation";
+    private const string PROPERTY_OFFSET_TRANSFORM_SCALE = "offset_transform_scale";
 
     #endregion
 
@@ -46,8 +52,8 @@ public static class TweenExtension
 
     #endregion
 
-    #region Main
-    
+    #region Additional
+
     public static CallbackTweener TweenAction(this Tween tween, Action action) =>
         tween.TweenCallback(Callable.From(action));
 
@@ -57,8 +63,12 @@ public static class TweenExtension
     public static PropertyTweener TweenShader(this Tween tween, ShaderMaterial material, string paramName, Variant value, double duration) =>
         tween.TweenProperty(material, string.Format(PROPERTY_SHADER, paramName), value, duration);
 
+    #endregion
+
     public static PropertyTweener TweenPosition(this Tween tween, GodotObject target, Variant to, double duration) =>
         tween.TweenProperty(target, PROPERTY_POSITION, to, duration);
+
+    #region Transform
 
     public static PropertyTweener TweenGlobalPosition(this Tween tween, GodotObject target, Variant to, double duration) =>
         tween.TweenProperty(target, PROPERTY_GLOBAL_POSITION, to, duration);
@@ -71,6 +81,35 @@ public static class TweenExtension
 
     public static PropertyTweener TweenRotationDegrees(this Tween tween, GodotObject target, Variant value, double duration) =>
         tween.TweenProperty(target, PROPERTY_ROTATION_DEGREES, value, duration);
+
+    #endregion
+
+    #region Offset Transform
+
+    public static PropertyTweener TweenOffsetPosition(this Tween tween, Control control, Vector2 value, double duration) =>
+        tween.TweenProperty(control, PROPERTY_OFFSET_TRANSFORM_POS, value, duration);
+
+    public static PropertyTweener TweenOffsetScale(this Tween tween, Control control, Vector2 value, double duration) =>
+        tween.TweenProperty(control, PROPERTY_OFFSET_TRANSFORM_SCALE, value, duration);
+
+    public static PropertyTweener TweenOffsetRotation(this Tween tween, Control control, float value, double duration) =>
+        tween.TweenProperty(control, PROPERTY_OFFSET_TRANSFORM_ROT, value, duration);
+        
+    public static PropertyTweener TweenOffsetRotationDegrees(this Tween tween, Control control, float value, double duration) =>
+        tween.TweenProperty(control, PROPERTY_OFFSET_TRANSFORM_ROT, Mathf.DegToRad(value), duration);
+
+    #endregion
+
+    #region Colors
+
+    public static PropertyTweener TweenModulate(this Tween tween, CanvasItem canvasItem, Color color, double duration) =>
+        tween.TweenProperty(canvasItem, PROPERTY_MODULATE, color, duration);
+
+    public static PropertyTweener TweenSelfModulate(this Tween tween, CanvasItem canvasItem, Color color, double duration) =>
+        tween.TweenProperty(canvasItem, PROPERTY_SELF_MODULATE, color, duration);
+
+    public static PropertyTweener TweenColor(this Tween tween, GodotObject target, Color value, double duration) =>
+        tween.TweenProperty(target, PROPERTY_COLOR, value, duration);
 
     #endregion
 }

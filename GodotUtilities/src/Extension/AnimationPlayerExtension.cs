@@ -22,7 +22,7 @@ public static class AnimationPlayerExtension
 
     public static void PlayReset(this AnimationPlayer player, double customBlend = -1, float customSpeed = 1f, bool fromEnd = false)
     {
-        player.Play(ANIM_RESET);
+        player.Play(ANIM_RESET, customBlend, customSpeed, fromEnd);
         player.Seek(0, true);
     }
 

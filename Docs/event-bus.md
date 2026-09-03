@@ -33,7 +33,11 @@ An alternative to calling `EventBus.AddListener` manually: mark methods on a **p
 ```csharp
 public partial class Player : CharacterBody2D
 {
-    public override void _Ready() => WireEvents();
+    public override void _Notification(int what)
+    {
+        if (what == NotificationEnterTree) 
+            WireEvents();
+    }
 
     [EventHandler]
     private void OnPlayerDied(PlayerDied evt) => GD.Print($"Final score: {evt.Score}");

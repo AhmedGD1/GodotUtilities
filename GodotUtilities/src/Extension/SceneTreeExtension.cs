@@ -14,9 +14,9 @@ public static class SceneTreeExtension
         return tree.GetNodesInGroup(group).OfType<T>();
     }
 
-    public static SignalAwaiter Wait(this SceneTree tree, double duration)
+    public static SignalAwaiter Wait(this SceneTree tree, double duration, bool ignoreTimeScale = false)
     {
-        return tree.ToSignal(tree.CreateTimer(duration), SceneTreeTimer.SignalName.Timeout);
+        return tree.ToSignal(tree.CreateTimer(duration, ignoreTimeScale: ignoreTimeScale), SceneTreeTimer.SignalName.Timeout);
     }
 
     public static SignalAwaiter NextIdle(this SceneTree tree)
