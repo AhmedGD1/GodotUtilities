@@ -26,6 +26,12 @@ public static class NodeExtension
         return node.GetChildren().OfType<T>();
     }
 
+    public static T GetLastChild<T>(this Node node) where T : Node
+    {
+        int index = node.GetChildCount() - 1;
+        return node.GetChild<T>(index);
+    }
+
     public static void QueueFreeChildren(this Node node)
     {
         foreach (var child in node.GetChildren())

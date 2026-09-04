@@ -18,6 +18,7 @@ public static class TweenExtension
     private const string PROPERTY_OFFSET_TRANSFORM_POS = "offset_transform_position";
     private const string PROPERTY_OFFSET_TRANSFORM_ROT = "offset_transform_rotation";
     private const string PROPERTY_OFFSET_TRANSFORM_SCALE = "offset_transform_scale";
+    private const string PROPERTY_OFFSET_TRANSFORM_POS_RATIO = "offset_transform_position_ratio";
 
     #endregion
 
@@ -65,10 +66,10 @@ public static class TweenExtension
 
     #endregion
 
+    #region Transform
+
     public static PropertyTweener TweenPosition(this Tween tween, GodotObject target, Variant to, double duration) =>
         tween.TweenProperty(target, PROPERTY_POSITION, to, duration);
-
-    #region Transform
 
     public static PropertyTweener TweenGlobalPosition(this Tween tween, GodotObject target, Variant to, double duration) =>
         tween.TweenProperty(target, PROPERTY_GLOBAL_POSITION, to, duration);
@@ -88,6 +89,9 @@ public static class TweenExtension
 
     public static PropertyTweener TweenOffsetPosition(this Tween tween, Control control, Vector2 value, double duration) =>
         tween.TweenProperty(control, PROPERTY_OFFSET_TRANSFORM_POS, value, duration);
+        
+    public static PropertyTweener TweenOffsetPositionRatio(this Tween tween, Control control, Vector2 value, double duration) =>
+        tween.TweenProperty(control, PROPERTY_OFFSET_TRANSFORM_POS_RATIO, value, duration);
 
     public static PropertyTweener TweenOffsetScale(this Tween tween, Control control, Vector2 value, double duration) =>
         tween.TweenProperty(control, PROPERTY_OFFSET_TRANSFORM_SCALE, value, duration);
