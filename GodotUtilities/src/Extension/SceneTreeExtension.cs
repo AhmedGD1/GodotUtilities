@@ -14,16 +14,16 @@ public static class SceneTreeExtension
         return tree.GetNodesInGroup(group).OfType<T>();
     }
 
-    public static SignalAwaiter Wait(this SceneTree tree, double duration, bool ignoreTimeScale = false, bool processAlways = true)
+    public static async Task Wait(this SceneTree tree, double duration, bool ignoreTimeScale = false, bool processAlways = true)
     {
-        return tree.ToSignal(
+        await tree.ToSignal(
             tree.CreateTimer(duration, processAlways, ignoreTimeScale: ignoreTimeScale),
             SceneTreeTimer.SignalName.Timeout
         );
     }
 
-    public static SignalAwaiter NextIdle(this SceneTree tree)
+    public static async Task NextIdle(this SceneTree tree)
     {
-        return tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+        await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
     }
 }
