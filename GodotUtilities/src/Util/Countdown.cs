@@ -1,3 +1,5 @@
+using Godot;
+
 namespace GodotUtilities;
 
 /// <summary>
@@ -35,7 +37,7 @@ public struct Countdown(double duration)
     /// Gets the amount of time remaining, in seconds.
     /// Returns zero when the countdown has finished.
     /// </summary>
-    public readonly double TimeLeft => Math.Max(0.0, remaining);
+    public readonly double TimeLeft => Mathf.Max(0.0, remaining);
 
     /// <summary>
     /// Gets the normalized progress of the countdown from <c>0</c> to <c>1</c>.
@@ -66,6 +68,17 @@ public struct Countdown(double duration)
     public void Start(double sec) => remaining = currentDuration = sec;
 
     /// <summary>
+    /// Starts or restarts the countdown using a random duration within the specified range.
+    /// </summary>
+    /// <param name="minDuration">The minimum duration, in seconds, inclusive.</param>
+    /// <param name="maxDuration">The maximum duration, in seconds, inclusive.</param>
+    public void StartRandom(double minDuration, double maxDuration)
+    {
+        double sec = GD.RandRange(minDuration, maxDuration);
+        Start(sec);
+    }
+
+    /// <summary>
     /// Advances the countdown by the specified amount of time.
     /// </summary>
     /// <param name="dt">
@@ -84,7 +97,7 @@ public struct Countdown(double duration)
         if (IsFinished)
             return false;
 
-        remaining -= Math.Max(0.0, dt);
+        remaining -= Mathf.Max(0.0, dt);
 
         if (remaining <= 0.0)
         {
