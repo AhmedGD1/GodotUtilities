@@ -85,7 +85,8 @@ public static class MathUtil
     {
         if (probability > 1f || probability < 0f)
             throw new ArgumentOutOfRangeException(nameof(probability), "has to be between [0, 1]");
-        return RNG.Randf() < probability;
+            
+        return RNG.Randf() < probability && probability > 0f;
     }
 
     /// <summary>
