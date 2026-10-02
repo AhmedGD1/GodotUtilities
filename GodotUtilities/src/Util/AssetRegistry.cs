@@ -42,8 +42,7 @@ public sealed class AssetRegistry(HashSet<string> validExtensions = null)
     public bool TryRegister(StringName id, string path) => _map.TryAdd(id, path);
 
     /// <summary>
-    /// Registers <paramref name="path"/> under <paramref name="id"/>. If <paramref name="id"/>
-    /// is already registered, a warning is pushed before the existing entry is overwritten.
+    /// Registers <paramref name="path"/> under <paramref name="id"/>.
     /// </summary>
     /// <param name="id">The id to register the asset under.</param>
     /// <param name="path">The resource path to associate with <paramref name="id"/>.</param>

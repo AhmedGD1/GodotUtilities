@@ -16,10 +16,8 @@ public static class SceneTreeExtension
 
     public static async Task Wait(this SceneTree tree, double duration, bool ignoreTimeScale = false, bool processAlways = true)
     {
-        await tree.ToSignal(
-            tree.CreateTimer(duration, processAlways, ignoreTimeScale: ignoreTimeScale),
-            SceneTreeTimer.SignalName.Timeout
-        );
+        var timer = tree.CreateTimer(duration, processAlways, ignoreTimeScale: ignoreTimeScale);
+        await tree.ToSignal(timer, SceneTreeTimer.SignalName.Timeout);
     }
 
     public static async Task NextIdle(this SceneTree tree)

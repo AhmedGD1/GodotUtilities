@@ -11,8 +11,12 @@ public static class NodeExtension
     
     public static T GetNode<T>(this Node node) where T : Node
     {
-        string name = typeof(T).Name;
-        return node.GetNode<T>(name);
+        return node.GetNode<T>(typeof(T).Name);
+    }
+
+    public static T GetNodeOrNull<T>(this Node node) where T : Node
+    {
+        return node.GetNodeOrNull<T>(typeof(T).Name);
     }
     
     public static T GetAutoload<T>(this Node node) where T : Node

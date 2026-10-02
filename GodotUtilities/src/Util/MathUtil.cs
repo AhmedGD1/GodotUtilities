@@ -86,7 +86,7 @@ public static class MathUtil
         if (probability > 1f || probability < 0f)
             throw new ArgumentOutOfRangeException(nameof(probability), "has to be between [0, 1]");
             
-        return RNG.Randf() < probability && probability > 0f;
+        return RNG.Randf() < probability;
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public static class MathUtil
     public static T PickRandom<T>(params T[] items) => items[RNG.RandiRange(0, items.Length - 1)];
 
     /// <inheritdoc cref="PickRandom{T}(T[])"/>
-    public static T PickRandom<T>(List<T> items) => items[RNG.RandiRange(0, items.Count - 1)];
+    public static T PickRandom<T>(IReadOnlyList<T> items) => items[RNG.RandiRange(0, items.Count - 1)];
 
     #endregion
 }

@@ -6,19 +6,24 @@ public static class TweenExtension
 {
     #region Properties
 
+    private const string PROPERTY_SHADER = "shader_parameter/{0}";
+
     private const string PROPERTY_COLOR = "color";
     private const string PROPERTY_SCALE = "scale";
-    private const string PROPERTY_SHADER = "shader_parameter/{0}";
     private const string PROPERTY_MODULATE = "modulate";
     private const string PROPERTY_POSITION = "position";
     private const string PROPERTY_ROTATION = "rotation";
     private const string PROPERTY_SELF_MODULATE = "self_modulate";
     private const string PROPERTY_GLOBAL_POSITION = "global_position";
     private const string PROPERTY_ROTATION_DEGREES = "rotation_degrees";
+
     private const string PROPERTY_OFFSET_TRANSFORM_POS = "offset_transform_position";
     private const string PROPERTY_OFFSET_TRANSFORM_ROT = "offset_transform_rotation";
     private const string PROPERTY_OFFSET_TRANSFORM_SCALE = "offset_transform_scale";
     private const string PROPERTY_OFFSET_TRANSFORM_POS_RATIO = "offset_transform_position_ratio";
+
+    private const string PROPERTY_MODULATE_ALPHA = "modulate:a";
+    private const string PROPERTY_SELF_MODULATE_ALPHA = "self_modulate:a";
 
     #endregion
 
@@ -106,14 +111,20 @@ public static class TweenExtension
 
     #region Colors
 
-    public static PropertyTweener TweenModulate(this Tween tween, CanvasItem canvasItem, Color color, double duration) =>
-        tween.TweenProperty(canvasItem, PROPERTY_MODULATE, color, duration);
-
-    public static PropertyTweener TweenSelfModulate(this Tween tween, CanvasItem canvasItem, Color color, double duration) =>
-        tween.TweenProperty(canvasItem, PROPERTY_SELF_MODULATE, color, duration);
-
     public static PropertyTweener TweenColor(this Tween tween, GodotObject target, Color value, double duration) =>
         tween.TweenProperty(target, PROPERTY_COLOR, value, duration);
+
+    public static PropertyTweener TweenModulate(this Tween tween, CanvasItem item, Color color, double duration) =>
+        tween.TweenProperty(item, PROPERTY_MODULATE, color, duration);
+
+    public static PropertyTweener TweenSelfModulate(this Tween tween, CanvasItem item, Color color, double duration) =>
+        tween.TweenProperty(item, PROPERTY_SELF_MODULATE, color, duration);
+
+    public static PropertyTweener TweenModulateAlpha(this Tween tween, CanvasItem item, float alpha, double duration) =>
+        tween.TweenProperty(item, PROPERTY_MODULATE_ALPHA, alpha, duration);
+
+    public static PropertyTweener TweenSelfModulateAlpha(this Tween tween, CanvasItem item, float alpha, double duration) =>
+        tween.TweenProperty(item, PROPERTY_SELF_MODULATE_ALPHA, alpha, duration);
 
     #endregion
 }

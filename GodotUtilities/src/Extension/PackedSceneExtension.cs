@@ -14,4 +14,14 @@ public static class PackedSceneExtension
         GD.PushWarning($"Could not instance PackedScene {scene} as {typeof(T).Name}");
         return null;
     }
+
+    public static T Instantiate<T>(this PackedScene packedScene, Node parent, Vector2? globalPos = null) where T : Node2D
+    {
+        var instance = packedScene.Instantiate<T>();
+        parent.AddChild(instance);
+
+        if (globalPos.HasValue)
+            instance.GlobalPosition = globalPos.Value;
+        return instance;
+    }
 }
