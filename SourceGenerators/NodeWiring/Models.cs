@@ -1,18 +1,20 @@
-using System.Collections.Generic;
-using Microsoft.CodeAnalysis;
-
 namespace GodotUtilities.SourceGenerators.NodeWiring;
 
-internal sealed record EnclosingTypeInfo(string Name, string KindKeyword, bool IsPartial);
+internal sealed record EnclosingTypeInfo(
+    string Name,
+    string DeclarationName,
+    string HintName,
+    string KindKeyword,
+    bool IsPartial);
 
 internal sealed record MemberModel(
     string ContainingTypeName,
-    string ContainingTypeFullyQualified,
+    string ContainingTypeKey,
     string? ContainingNamespace,
-    Location ContainingTypeLocation,
+    LocationInfo? ContainingTypeLocation,
     bool ContainingIsPartial,
     bool ContainingDerivesFromNode,
-    IReadOnlyList<EnclosingTypeInfo> EnclosingChain,
+    EquatableArray<EnclosingTypeInfo> EnclosingChain,
     string MemberName,
     string MemberTypeFullyQualified,
     string MemberTypeDisplayName,
@@ -23,9 +25,8 @@ internal sealed record MemberModel(
     bool IsInitOnly,
     string? ExplicitPath,
     bool HasEmptyExplicitPath,
-    Location MemberLocation,
-    string ContainingTypeSymbolKey,
-    bool IsReadOnlyField = false,
-    bool IsRequiredProperty = false);
+    LocationInfo? MemberLocation,
+    bool IsReadOnlyField,
+    bool IsRequiredProperty);
 
-internal sealed record TypeGroup(MemberModel First, IReadOnlyList<MemberModel> Members);
+internal sealed record TypeGroup(MemberModel First, EquatableArray<MemberModel> Members);

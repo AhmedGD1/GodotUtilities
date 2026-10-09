@@ -58,10 +58,7 @@ internal static class NameConverter
     private static void AppendCapitalized(StringBuilder sb, string word)
     {
         sb.Append(char.ToUpperInvariant(word[0]));
-        for (var i = 1; i < word.Length; i++)
-        {
-            sb.Append(char.ToLowerInvariant(word[i]));
-        }
+        sb.Append(word, 1, word.Length - 1);
     }
 
     private static List<string> SplitWords(string memberName)
@@ -95,14 +92,21 @@ internal static class NameConverter
                 continue;
             }
 
-            var isNewWord = current.Length > 0 &&
-                ((char.IsUpper(c) && char.IsLower(memberName[i - 1]))
-                 || (char.IsLetter(c) && char.IsDigit(memberName[i - 1])));
-
-            if (isNewWord)
+            if (current.Length > 0)
             {
-                words.Add(current.ToString());
-                current.Clear();
+                var prev = memberName[i - 1];
+                var hasNext = i + 1 < memberName.Length;
+
+                var isNewWord =
+                    (char.IsUpper(c) && char.IsLower(prev))
+                    || (char.IsUpper(c) && char.IsUpper(prev) && hasNext && char.IsLower(memberName[i + 1]))
+                    || (char.IsLetter(c) && char.IsDigit(prev));
+
+                if (isNewWord)
+                {
+                    words.Add(current.ToString());
+                    current.Clear();
+                }
             }
 
             current.Append(c);
@@ -113,6 +117,19 @@ internal static class NameConverter
             words.Add(current.ToString());
         }
 
-        return words;
+        var merged = new List<string>(words.Count);
+        foreach (var word in words)
+        {
+            if (word == "D" && merged.Count > 0 && char.IsDigit(merged[merged.Count - 1][merged[merged.Count - 1].Length - 1]))
+            {
+                merged[merged.Count - 1] += word;
+            }
+            else
+            {
+                merged.Add(word);
+            }
+        }
+
+        return merged;
     }
 }

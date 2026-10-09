@@ -1,9 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GodotUtilities.SourceGenerators.NodeWiring;
@@ -12,7 +13,6 @@ namespace GodotUtilities.SourceGenerators.NodeWiring;
 public sealed class NodeWiringGenerator : IIncrementalGenerator
 {
     private const string NodeAttributeFullName = "GodotUtilities.NodeAttribute";
-    private const string GodotNodeFullName = "Godot.Node";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -26,7 +26,7 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
 
         var grouped = candidates
             .Collect()
-            .Select(static (members, _) => GroupByContainingType(members));
+            .Select(static (members, ct) => GroupByContainingType(members, ct));
 
         context.RegisterSourceOutput(grouped, static (spc, types) =>
         {
@@ -37,7 +37,7 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
         });
     }
 
-    private static MemberModel? Transform(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
+    private static MemberModel? Transform(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
     {
         var symbol = ctx.TargetSymbol;
         var attributeData = ctx.Attributes.FirstOrDefault();
@@ -52,7 +52,7 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
             return null;
         }
 
-        var godotNodeSymbol = ctx.SemanticModel.Compilation.GetTypeByMetadataName(GodotNodeFullName);
+        ct.ThrowIfCancellationRequested();
 
         string memberName;
         ITypeSymbol memberType;
@@ -102,76 +102,46 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
             }
         }
 
-        bool derivesFromNode;
-        bool containingDerivesFromNode;
-        if (godotNodeSymbol is not null)
-        {
-            derivesFromNode = InheritsFrom(memberType, godotNodeSymbol);
-            containingDerivesFromNode = InheritsFrom(containingType, godotNodeSymbol);
-        }
-        else
-        {
-            derivesFromNode = InheritsFromString(memberType, GodotNodeFullName);
-            containingDerivesFromNode = InheritsFromString(containingType, GodotNodeFullName);
-        }
-
-        var enclosingChain = new List<EnclosingTypeInfo>();
+        var chain = new List<EnclosingTypeInfo>();
         var allEnclosingPartial = true;
-        
+
         for (var current = containingType; current is not null; current = current.ContainingType)
         {
-            var isPartial = IsDeclaredPartial(current);
+            var isPartial = GodotSymbols.IsDeclaredPartial(current);
             allEnclosingPartial &= isPartial;
-            enclosingChain.Add(new EnclosingTypeInfo(current.Name, GetTypeKindKeyword(current), isPartial));
+            chain.Add(new EnclosingTypeInfo(
+                current.Name,
+                GodotSymbols.GetDeclarationName(current),
+                GodotSymbols.GetHintName(current),
+                GetTypeKindKeyword(current),
+                isPartial));
         }
-        
-        enclosingChain.Reverse();
+
+        chain.Reverse();
 
         return new MemberModel(
-            containingType.Name,
-            containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            containingType.ContainingNamespace?.IsGlobalNamespace == true
-                ? null
-                : containingType.ContainingNamespace?.ToDisplayString(),
-            symbol.Locations.FirstOrDefault() ?? Location.None,
-            allEnclosingPartial,
-            containingDerivesFromNode,
-            enclosingChain,
-            memberName,
-            memberType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            memberType.ToDisplayString(),
-            derivesFromNode,
-            isStatic,
-            isProperty,
-            hasAccessibleSetter,
-            isInitOnly,
-            explicitPath,
-            hasEmptyExplicitPath,
-            symbol.Locations.FirstOrDefault() ?? Location.None,
-            containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            isReadOnlyField,
-            isRequiredProperty
-        );
-    }
-
-    private static bool InheritsFrom(ITypeSymbol type, INamedTypeSymbol baseType)
-    {
-        for (var current = type; current is not null; current = current.BaseType)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                return true;
-        }
-        return false;
-    }
-
-    private static bool InheritsFromString(ITypeSymbol type, string baseTypeFullName)
-    {
-        for (var current = type; current is not null; current = current.BaseType)
-        {
-            if (current.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::" + baseTypeFullName)
-                return true;
-        }
-        return false;
+            ContainingTypeName: containingType.Name,
+            ContainingTypeKey: containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            ContainingNamespace: containingType.ContainingNamespace is { IsGlobalNamespace: false } ns
+                ? ns.ToDisplayString()
+                : null,
+            ContainingTypeLocation: LocationInfo.From(containingType.Locations.FirstOrDefault()),
+            ContainingIsPartial: allEnclosingPartial,
+            ContainingDerivesFromNode: GodotSymbols.InheritsFromGodotNode(containingType),
+            EnclosingChain: new EquatableArray<EnclosingTypeInfo>(chain),
+            MemberName: memberName,
+            MemberTypeFullyQualified: memberType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).TrimEnd('?'),
+            MemberTypeDisplayName: memberType.ToDisplayString(),
+            MemberDerivesFromNode: GodotSymbols.InheritsFromGodotNode(memberType),
+            IsStatic: isStatic,
+            IsProperty: isProperty,
+            HasAccessibleSetter: hasAccessibleSetter,
+            IsInitOnly: isInitOnly,
+            ExplicitPath: explicitPath,
+            HasEmptyExplicitPath: hasEmptyExplicitPath,
+            MemberLocation: LocationInfo.From(symbol.Locations.FirstOrDefault()),
+            IsReadOnlyField: isReadOnlyField,
+            IsRequiredProperty: isRequiredProperty);
     }
 
     private static string EscapeForStringLiteral(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
@@ -184,42 +154,47 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
         _ => "class",
     };
 
-    private static bool IsDeclaredPartial(INamedTypeSymbol type)
+    private static EquatableArray<TypeGroup> GroupByContainingType(
+        ImmutableArray<MemberModel> members, CancellationToken ct)
     {
-        foreach (var syntaxRef in type.DeclaringSyntaxReferences)
+        var groups = new Dictionary<string, List<MemberModel>>(StringComparer.Ordinal);
+
+        foreach (var member in members)
         {
-            if (syntaxRef.GetSyntax() is TypeDeclarationSyntax typeDecl &&
-                typeDecl.Modifiers.Any(SyntaxKind.PartialKeyword))
+            ct.ThrowIfCancellationRequested();
+
+            if (!groups.TryGetValue(member.ContainingTypeKey, out var list))
             {
-                return true;
+                groups[member.ContainingTypeKey] = list = [];
             }
+
+            list.Add(member);
         }
 
-        return false;
-    }
+        // Deterministic ordering, independent of the order Roslyn enumerates files in.
+        var keys = groups.Keys.ToList();
+        keys.Sort(StringComparer.Ordinal);
 
-    private static List<TypeGroup> GroupByContainingType(ImmutableArray<MemberModel> members)
-    {
-        var result = new List<TypeGroup>();
-        foreach (var group in members.GroupBy(m => m.ContainingTypeSymbolKey))
+        var result = new List<TypeGroup>(keys.Count);
+        foreach (var key in keys)
         {
-            var list = group.ToList();
-            result.Add(new TypeGroup(list[0], list));
+            var list = groups[key];
+            list.Sort(static (a, b) => LocationInfo.Compare(a.MemberLocation, b.MemberLocation));
+            result.Add(new TypeGroup(list[0], new EquatableArray<MemberModel>(list)));
         }
 
-        return result;
+        return new EquatableArray<TypeGroup>(result);
     }
 
     private static void Emit(SourceProductionContext spc, TypeGroup group)
     {
         var first = group.First;
-        var members = group.Members;
 
         if (!first.ContainingIsPartial)
         {
             spc.ReportDiagnostic(Diagnostic.Create(
                 Diagnostics.ContainingTypeNotPartial,
-                first.ContainingTypeLocation,
+                first.ContainingTypeLocation.ToLocationOrNone(),
                 first.ContainingTypeName,
                 first.EnclosingChain.FirstOrDefault(e => !e.IsPartial)?.Name ?? first.ContainingTypeName));
             return;
@@ -229,100 +204,68 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
         {
             spc.ReportDiagnostic(Diagnostic.Create(
                 Diagnostics.ContainingTypeNotNode,
-                first.ContainingTypeLocation,
+                first.ContainingTypeLocation.ToLocationOrNone(),
                 first.ContainingTypeName));
             return;
         }
 
         var validMembers = new List<(MemberModel model, string path)>();
-        var seenPaths = new Dictionary<string, MemberModel>();
+        var seenPaths = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var member in members)
+        foreach (var member in group.Members)
         {
+            var location = member.MemberLocation.ToLocationOrNone();
+
             if (member.IsReadOnlyField)
             {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.FieldIsReadOnly,
-                    member.MemberLocation,
-                    member.ContainingTypeName,
-                    member.MemberName));
+                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.FieldIsReadOnly, location, member.ContainingTypeName, member.MemberName));
                 continue;
             }
 
             if (member.IsRequiredProperty)
             {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.PropertyIsRequired,
-                    member.MemberLocation,
-                    member.ContainingTypeName,
-                    member.MemberName));
+                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.PropertyIsRequired, location, member.ContainingTypeName, member.MemberName));
                 continue;
             }
 
             if (member.IsStatic)
             {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.MemberIsStatic,
-                    member.MemberLocation,
-                    member.ContainingTypeName,
-                    member.MemberName));
+                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.MemberIsStatic, location, member.ContainingTypeName, member.MemberName));
                 continue;
             }
 
             if (!member.MemberDerivesFromNode)
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.MemberTypeNotNode,
-                    member.MemberLocation,
-                    member.ContainingTypeName,
-                    member.MemberName,
-                    member.MemberTypeDisplayName));
+                    Diagnostics.MemberTypeNotNode, location,
+                    member.ContainingTypeName, member.MemberName, member.MemberTypeDisplayName));
                 continue;
             }
 
             if (member.IsProperty && !member.HasAccessibleSetter)
             {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.PropertyHasNoSetter,
-                    member.MemberLocation,
-                    member.ContainingTypeName,
-                    member.MemberName));
+                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.PropertyHasNoSetter, location, member.ContainingTypeName, member.MemberName));
                 continue;
             }
 
             if (member.IsProperty && member.IsInitOnly)
             {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.PropertyIsInitOnly,
-                    member.MemberLocation,
-                    member.ContainingTypeName,
-                    member.MemberName));
+                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.PropertyIsInitOnly, location, member.ContainingTypeName, member.MemberName));
                 continue;
             }
 
             if (member.HasEmptyExplicitPath)
             {
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.EmptyExplicitPath,
-                    member.MemberLocation,
-                    member.ContainingTypeName,
-                    member.MemberName));
+                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.EmptyExplicitPath, location, member.ContainingTypeName, member.MemberName));
             }
 
             var path = member.ExplicitPath ?? NameConverter.ToNodeName(member.MemberName);
 
-            if (seenPaths.TryGetValue(path, out _))
+            if (!seenPaths.Add(path))
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.DuplicateWireTarget,
-                    member.MemberLocation,
-                    member.ContainingTypeName,
-                    member.MemberName,
-                    path));
-            }
-            else
-            {
-                seenPaths[path] = member;
+                    Diagnostics.DuplicateWireTarget, location,
+                    member.ContainingTypeName, member.MemberName, path));
             }
 
             validMembers.Add((member, path));
@@ -336,6 +279,7 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated/>");
         sb.AppendLine("#nullable enable");
+        sb.AppendLine("#pragma warning disable CS8600, CS8601");
         sb.AppendLine();
 
         var hasNamespace = !string.IsNullOrEmpty(first.ContainingNamespace);
@@ -350,91 +294,18 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
         {
             var level = first.EnclosingChain[i];
             var levelIndent = baseIndent + new string(' ', i * 4);
-            sb.Append(levelIndent).Append("partial ").Append(level.KindKeyword).Append(' ').Append(level.Name).AppendLine();
+            sb.Append(levelIndent).Append("partial ").Append(level.KindKeyword).Append(' ').Append(level.DeclarationName).AppendLine();
             sb.Append(levelIndent).AppendLine("{");
         }
 
         var bodyIndent = baseIndent + new string(' ', first.EnclosingChain.Count * 4);
-
-        sb.Append(bodyIndent).AppendLine("/// <summary>");
-        sb.Append(bodyIndent).AppendLine("/// Resolves every [Node]-annotated member. Call this once, typically from");
-        sb.Append(bodyIndent).AppendLine("/// _Ready(), before the members are used. Each member is tried, in order,");
-        sb.Append(bodyIndent).AppendLine("/// against its node path (or PascalCase name), that name as a unique name");
-        sb.Append(bodyIndent).AppendLine("/// (%Name), and its snake_case and camelCase forms; if none of those resolve,");
-        sb.Append(bodyIndent).AppendLine("/// it falls back to a case/underscore-insensitive match against this node's");
-        sb.Append(bodyIndent).AppendLine("/// direct children (looked up once, up front, rather than rescanned per member),");
-        sb.Append(bodyIndent).AppendLine("/// logging a warning if the match isn't one of the member's canonical name forms,");
-        sb.Append(bodyIndent).AppendLine("/// or an error if even the fallback finds nothing.");
-        sb.Append(bodyIndent).AppendLine("/// </summary>");
-        sb.Append(bodyIndent).AppendLine("protected void WireNodes()");
-        sb.Append(bodyIndent).AppendLine("{");
-
         var innerIndent = bodyIndent + "    ";
 
-        sb.Append(innerIndent).AppendLine("string __WireNodesNormalize(string s) => s.Replace(\"_\", string.Empty).ToLowerInvariant();");
-        sb.Append(innerIndent).AppendLine("var __wireNodesChildren = new global::System.Collections.Generic.Dictionary<string, global::Godot.Node>();");
-        sb.Append(innerIndent).AppendLine("foreach (var __child in GetChildren())");
-        sb.Append(innerIndent).AppendLine("{");
-        sb.Append(innerIndent).AppendLine("    var __key = __WireNodesNormalize(__child.Name.ToString());");
-        sb.Append(innerIndent).AppendLine("    if (!__wireNodesChildren.ContainsKey(__key))");
-        sb.Append(innerIndent).AppendLine("    {");
-        sb.Append(innerIndent).AppendLine("        __wireNodesChildren[__key] = __child;");
-        sb.Append(innerIndent).AppendLine("    }");
-        sb.Append(innerIndent).AppendLine("}");
-        sb.Append(innerIndent).AppendLine();
+        AppendBlock(sb, bodyIndent, WireNodesPrologue);
 
-        sb.Append(innerIndent).AppendLine("global::Godot.Node? __WireNodesFallback(string memberName, string[] canonicalNames)");
-        sb.Append(innerIndent).AppendLine("{");
-        sb.Append(innerIndent).AppendLine("    var __scene = !string.IsNullOrEmpty(SceneFilePath) ? SceneFilePath : \"the scene\";");
-        sb.Append(innerIndent).AppendLine("    if (!__wireNodesChildren.TryGetValue(__WireNodesNormalize(memberName), out var __match))");
-        sb.Append(innerIndent).AppendLine("    {");
-        sb.Append(innerIndent).AppendLine("        global::Godot.GD.PrintErr($\"WireNodes: could not match member '{memberName}' to any child node in {__scene}.\");");
-        sb.Append(innerIndent).AppendLine("        return null;");
-        sb.Append(innerIndent).AppendLine("    }");
-        sb.Append(innerIndent).AppendLine();
-        sb.Append(innerIndent).AppendLine("    if (global::System.Array.IndexOf(canonicalNames, __match.Name.ToString()) < 0)");
-        sb.Append(innerIndent).AppendLine("    {");
-        sb.Append(innerIndent).AppendLine("        global::Godot.GD.PushWarning($\"WireNodes: matched member '{memberName}' to node '{__match.Name}' in {__scene} as a best-guess.\");");
-        sb.Append(innerIndent).AppendLine("    }");
-        sb.Append(innerIndent).AppendLine();
-        sb.Append(innerIndent).AppendLine("    return __match;");
-        sb.Append(innerIndent).AppendLine("}");
-        sb.Append(innerIndent).AppendLine();
-
-        foreach (var (model, path) in validMembers)
+        foreach (var (model, _) in validMembers)
         {
-            var pascal = NameConverter.ToNodeName(model.MemberName);
-            var snake = NameConverter.ToSnakeCase(model.MemberName);
-            var camel = NameConverter.ToCamelCase(model.MemberName);
-
-            var candidates = new List<string> { path };
-            foreach (var candidate in new[] { pascal, snake, camel })
-            {
-                if (!candidates.Contains(candidate))
-                {
-                    candidates.Add(candidate);
-                }
-            }
-
-            var typeName = model.MemberTypeFullyQualified;
-
-            sb.Append(innerIndent).Append(model.MemberName).Append(" = ");
-            foreach (var candidate in candidates)
-            {
-                var escaped = EscapeForStringLiteral(candidate);
-
-                sb.Append("GetNodeOrNull<").Append(typeName).Append(">(\"").Append(escaped).Append("\") ?? ");
-
-                if (candidate.IndexOf('/') < 0)
-                {
-                    sb.Append("GetNodeOrNull<").Append(typeName).Append(">(\"%").Append(escaped).Append("\") ?? ");
-                }
-            }
-
-            sb.Append("__WireNodesFallback(\"").Append(EscapeForStringLiteral(model.MemberName)).Append("\", new[] { ");
-            sb.Append(string.Join(", ", candidates.Select(c => "\"" + EscapeForStringLiteral(c) + "\"")));
-            sb.Append(" }) as ").Append(typeName);
-            sb.AppendLine(";");
+            sb.Append(innerIndent).AppendLine(BuildAssignment(model));
         }
 
         sb.Append(bodyIndent).AppendLine("}");
@@ -450,8 +321,118 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
             sb.AppendLine("}");
         }
 
-        var chainNames = string.Join(".", first.EnclosingChain.Select(e => e.Name));
+        var chainNames = string.Join(".", first.EnclosingChain.Select(e => e.HintName));
         var hintName = (hasNamespace ? first.ContainingNamespace + "." : "") + chainNames + ".WireNodes.g.cs";
         spc.AddSource(hintName, sb.ToString());
     }
+
+    private static string BuildAssignment(MemberModel model)
+    {
+        var pascal = NameConverter.ToNodeName(model.MemberName);
+        var raw = model.MemberName.TrimStart('_');
+        var snake = NameConverter.ToSnakeCase(model.MemberName);
+        var camel = NameConverter.ToCamelCase(model.MemberName);
+
+        var candidates = new List<string>();
+        foreach (var candidate in new[] { model.ExplicitPath, pascal, raw, snake, camel })
+        {
+            if (!string.IsNullOrEmpty(candidate) && !candidates.Contains(candidate!))
+            {
+                candidates.Add(candidate!);
+            }
+        }
+
+        var typeName = model.MemberTypeFullyQualified;
+        var sb = new StringBuilder();
+        sb.Append(model.MemberName).Append(" = ");
+
+        foreach (var candidate in candidates)
+        {
+            var escaped = EscapeForStringLiteral(candidate);
+
+            sb.Append("GetNodeOrNull<").Append(typeName).Append(">(\"").Append(escaped).Append("\") ?? ");
+
+            if (candidate.IndexOf('/') < 0)
+            {
+                sb.Append("GetNodeOrNull<").Append(typeName).Append(">(\"%").Append(escaped).Append("\") ?? ");
+            }
+        }
+
+        sb.Append("__WireNodesFallback<").Append(typeName).Append(">(\"")
+          .Append(EscapeForStringLiteral(model.MemberName)).Append("\", new[] { ")
+          .Append(string.Join(", ", candidates.Select(c => "\"" + EscapeForStringLiteral(c) + "\"")))
+          .Append(" });");
+
+        return sb.ToString();
+    }
+
+    private static void AppendBlock(StringBuilder sb, string indent, string block)
+    {
+        foreach (var line in block.Replace("\r\n", "\n").Split('\n'))
+        {
+            if (line.Length == 0)
+            {
+                sb.AppendLine();
+            }
+            else
+            {
+                sb.Append(indent).AppendLine(line);
+            }
+        }
+    }
+
+    private const string WireNodesPrologue = """
+        /// <summary>
+        /// Resolves every [Node]-annotated member. Call this once, typically from _Ready() (or on
+        /// NotificationSceneInstantiated), before the members are used. Each member is tried against
+        /// its explicit path, then its PascalCase / exact / snake_case / camelCase names, each as a
+        /// normal path and as a unique name (%Name). If none resolve, it falls back to a case- and
+        /// underscore-insensitive match against this node's direct children (built lazily, only if
+        /// needed), logging a warning for a best-guess match, or an error if the match is missing
+        /// or is the wrong type.
+        /// </summary>
+        protected void WireNodes()
+        {
+            global::System.Collections.Generic.Dictionary<string, global::Godot.Node>? __wireNodesChildren = null;
+
+            static string __WireNodesNormalize(string s) => s.Replace("_", string.Empty).ToLowerInvariant();
+
+            T? __WireNodesFallback<T>(string memberName, string[] canonicalNames) where T : global::Godot.Node
+            {
+                var __scene = !string.IsNullOrEmpty(SceneFilePath) ? SceneFilePath : "the scene";
+
+                if (__wireNodesChildren is null)
+                {
+                    __wireNodesChildren = new global::System.Collections.Generic.Dictionary<string, global::Godot.Node>();
+                    foreach (var __child in GetChildren())
+                    {
+                        var __key = __WireNodesNormalize(__child.Name.ToString());
+                        if (!__wireNodesChildren.ContainsKey(__key))
+                        {
+                            __wireNodesChildren[__key] = __child;
+                        }
+                    }
+                }
+
+                if (!__wireNodesChildren.TryGetValue(__WireNodesNormalize(memberName), out var __match))
+                {
+                    global::Godot.GD.PrintErr($"WireNodes: could not match member '{memberName}' to any child node in {__scene}.");
+                    return null;
+                }
+
+                if (__match is not T __typed)
+                {
+                    global::Godot.GD.PushError($"WireNodes: child '{__match.Name}' matches member '{memberName}' in {__scene}, but it is a {__match.GetType().Name}, not a {typeof(T).Name}.");
+                    return null;
+                }
+
+                if (global::System.Array.IndexOf(canonicalNames, __match.Name.ToString()) < 0)
+                {
+                    global::Godot.GD.PushWarning($"WireNodes: matched member '{memberName}' to node '{__match.Name}' in {__scene} as a best-guess.");
+                }
+
+                return __typed;
+            }
+
+        """;
 }

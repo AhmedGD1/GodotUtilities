@@ -23,6 +23,7 @@ public static class ResourcePreloaderExtension
     
     public static T InstantiateSceneOrNull<T>(this ResourcePreloader resourcePreloader) where T : Node
     {
-        return resourcePreloader.InstantiateSceneOrNull<T>(typeof(T).Name);
+        return resourcePreloader.InstantiateSceneOrNull<T>(typeof(T).Name) 
+            ?? resourcePreloader.InstantiateSceneOrNull<T>(typeof(T).Name.ToSnakeCase());
     }
 }

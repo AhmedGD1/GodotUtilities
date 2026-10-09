@@ -1,9 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GodotUtilities.SourceGenerators;
@@ -15,231 +16,212 @@ public sealed class EventHandlerGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var candidateMethods = context.SyntaxProvider
+        // Step 1: one small, value-equatable model per [EventHandler] method. Roslyn caches this per
+        // method, so editing an unrelated file doesn't re-run it.
+        var candidates = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 EventHandlerAttributeFullName,
                 predicate: static (node, _) => node is MethodDeclarationSyntax,
-                transform: static (ctx, _) => (MethodDeclarationSyntax)ctx.TargetNode)
-            .Collect();
+                transform: static (ctx, ct) => Transform(ctx, ct))
+            .Where(static c => c is not null)
+            .Select(static (c, _) => c!);
 
-        var classModels = candidateMethods
-            .Combine(context.CompilationProvider)
-            .SelectMany(static (pair, ct) =>
-            {
-                var (methods, compilation) = pair;
-                var results = new List<(WireableClassModel Model, ImmutableArray<Diagnostic> Diagnostics)>();
+        // Step 2: group per class using only plain data. The result compares by value, so when no
+        // handler changed, the output step below is skipped entirely.
+        var models = candidates
+            .Collect()
+            .Select(static (all, ct) => BuildModels(all, ct));
 
-                var byClass = new Dictionary<INamedTypeSymbol, List<MethodDeclarationSyntax>>(SymbolEqualityComparer.Default);
-                foreach (var method in methods)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    if (method.Parent is not ClassDeclarationSyntax classDecl) continue;
-
-                    var semanticModel = compilation.GetSemanticModel(classDecl.SyntaxTree);
-                    var classSymbol = semanticModel.GetDeclaredSymbol(classDecl);
-                    if (classSymbol is null) continue;
-
-                    if (!byClass.TryGetValue(classSymbol, out var list))
-                        byClass[classSymbol] = list = [];
-                    list.Add(method);
-                }
-
-                foreach (var entry in byClass)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    results.Add(BuildModel(entry.Key, entry.Value, compilation));
-                }
-
-                return results;
-            });
-
-        context.RegisterSourceOutput(classModels, static (spc, result) =>
+        context.RegisterSourceOutput(models, static (spc, classes) =>
         {
-            foreach (var diagnostic in result.Diagnostics)
-                spc.ReportDiagnostic(diagnostic);
-
-            if (result.Model.Handlers.Items.Count == 0) return;
-            if (!result.Model.IsPartial || !result.Model.DerivesFromNode || result.Model.IsNested) return;
-
-            var hintPrefix = string.IsNullOrEmpty(result.Model.Namespace)
-                ? result.Model.ClassName
-                : $"{result.Model.Namespace}.{result.Model.ClassName}";
-
-            spc.AddSource($"{hintPrefix}.EventHandlers.g.cs", GenerateSource(result.Model));
+            foreach (var model in classes)
+                Emit(spc, model);
         });
     }
 
-    private static (WireableClassModel, ImmutableArray<Diagnostic>) BuildModel(
-        INamedTypeSymbol classSymbol, List<MethodDeclarationSyntax> methodDecls, Compilation compilation)
+    private static HandlerCandidate? Transform(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
     {
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+        if (ctx.TargetSymbol is not IMethodSymbol method) return null;
 
-        var className = classSymbol.Name;
-        var namespaceName = classSymbol.ContainingNamespace is { IsGlobalNamespace: false } ns
-            ? ns.ToDisplayString()
-            : string.Empty;
+        var classSymbol = method.ContainingType;
+        if (classSymbol is null || classSymbol.TypeKind != TypeKind.Class) return null;
 
-        var isPartial = classSymbol.DeclaringSyntaxReferences
-            .Select(r => r.GetSyntax())
-            .OfType<ClassDeclarationSyntax>()
-            .All(c => c.Modifiers.Any(SyntaxKind.PartialKeyword));
+        var attribute = ctx.Attributes.FirstOrDefault();
+        if (attribute is null) return null;
 
-        var derivesFromNode = DerivesFromGodotNode(classSymbol);
-        var isNested = classSymbol.ContainingType is not null;
-        var firstDecl = methodDecls[0];
+        ct.ThrowIfCancellationRequested();
 
-        if (isNested)
+        var type = new WireableTypeInfo(
+            Key: classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            Name: classSymbol.Name,
+            DeclarationName: GodotSymbols.GetDeclarationName(classSymbol),
+            HintName: GodotSymbols.GetHintName(classSymbol),
+            Namespace: classSymbol.ContainingNamespace is { IsGlobalNamespace: false } ns
+                ? ns.ToDisplayString()
+                : string.Empty,
+            IsPartial: GodotSymbols.IsDeclaredPartial(classSymbol),
+            DerivesFromNode: GodotSymbols.InheritsFromGodotNode(classSymbol),
+            IsNested: classSymbol.ContainingType is not null);
+
+        var location = LocationInfo.From(((MethodDeclarationSyntax)ctx.TargetNode).Identifier.GetLocation());
+
+        HandlerCandidate Fail(DiagnosticDescriptor descriptor, params string[] args)
+            => new(type, method.Name, location, null, DiagnosticData.Create(descriptor, location, args));
+
+        if (method.IsStatic)
+            return Fail(EventHandlerDiagnostics.StaticMethodNotSupported, method.Name);
+
+        var parameters = method.Parameters;
+        if (parameters.Length > 1)
+            return Fail(EventHandlerDiagnostics.TooManyParameters, method.Name, parameters.Length.ToString());
+
+        ITypeSymbol? explicitType = null;
+        if (attribute.ConstructorArguments.Length > 0 &&
+            attribute.ConstructorArguments[0].Value is ITypeSymbol typeArg)
         {
-            diagnostics.Add(Diagnostic.Create(
-                EventHandlerDiagnostics.NestedClassNotSupported,
-                firstDecl.Identifier.GetLocation(),
-                className));
+            explicitType = typeArg;
         }
 
-        if (!isPartial)
+        var parameterType = parameters.Length > 0 ? parameters[0].Type : null;
+        var eventType = explicitType ?? parameterType;
+
+        if (eventType is null)
+            return Fail(EventHandlerDiagnostics.MissingEventType, method.Name);
+
+        if (explicitType is not null && parameterType is not null &&
+            !SymbolEqualityComparer.Default.Equals(explicitType, parameterType))
         {
-            diagnostics.Add(Diagnostic.Create(
-                EventHandlerDiagnostics.ContainingClassNotPartial,
-                firstDecl.Identifier.GetLocation(),
-                className));
+            return Fail(
+                EventHandlerDiagnostics.ParameterTypeMismatch,
+                method.Name,
+                explicitType.ToDisplayString(),
+                parameterType.ToDisplayString());
         }
 
-        if (!derivesFromNode)
-        {
-            diagnostics.Add(Diagnostic.Create(
-                EventHandlerDiagnostics.ContainingClassNotNode,
-                firstDecl.Identifier.GetLocation(),
-                className));
-        }
+        var handler = new EventHandlerModel(
+            method.Name,
+            eventType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            eventType.ToDisplayString(),
+            parameters.Length > 0);
 
-        var handlers = new List<EventHandlerModel>();
-        var seenEventTypes = new Dictionary<string, string>();
-
-        foreach (var member in methodDecls)
-        {
-            var semanticModel = compilation.GetSemanticModel(member.SyntaxTree);
-            var methodSymbol = semanticModel.GetDeclaredSymbol(member);
-            if (methodSymbol is null) continue;
-
-            var attributeData = methodSymbol.GetAttributes()
-                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == EventHandlerAttributeFullName);
-            if (attributeData is null) continue;
-
-            if (methodSymbol.IsStatic)
-            {
-                diagnostics.Add(Diagnostic.Create(
-                    EventHandlerDiagnostics.StaticMethodNotSupported,
-                    member.Identifier.GetLocation(),
-                    methodSymbol.Name));
-                continue;
-            }
-
-            var parameters = methodSymbol.Parameters;
-            if (parameters.Length > 1)
-            {
-                diagnostics.Add(Diagnostic.Create(
-                    EventHandlerDiagnostics.TooManyParameters,
-                    member.Identifier.GetLocation(),
-                    methodSymbol.Name,
-                    parameters.Length));
-                continue;
-            }
-
-            ITypeSymbol? explicitType = null;
-            if (attributeData.ConstructorArguments.Length > 0 &&
-                attributeData.ConstructorArguments[0].Value is ITypeSymbol typeArg)
-            {
-                explicitType = typeArg;
-            }
-
-            var parameterType = parameters.Length > 0 ? parameters[0].Type : null;
-            var eventType = explicitType ?? parameterType;
-
-            if (eventType is null)
-            {
-                diagnostics.Add(Diagnostic.Create(
-                    EventHandlerDiagnostics.MissingEventType,
-                    member.Identifier.GetLocation(),
-                    methodSymbol.Name));
-                continue;
-            }
-
-            if (explicitType is not null && parameterType is not null &&
-                !SymbolEqualityComparer.Default.Equals(explicitType, parameterType))
-            {
-                diagnostics.Add(Diagnostic.Create(
-                    EventHandlerDiagnostics.ParameterTypeMismatch,
-                    member.Identifier.GetLocation(),
-                    methodSymbol.Name,
-                    explicitType.ToDisplayString(),
-                    parameterType.ToDisplayString()));
-                continue;
-            }
-
-            var eventTypeFullName = eventType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-
-            if (seenEventTypes.TryGetValue(eventTypeFullName, out var firstMethodName))
-            {
-                diagnostics.Add(Diagnostic.Create(
-                    EventHandlerDiagnostics.DuplicateHandlerForType,
-                    member.Identifier.GetLocation(),
-                    className,
-                    eventType.ToDisplayString(),
-                    firstMethodName,
-                    methodSymbol.Name));
-                continue;
-            }
-            seenEventTypes[eventTypeFullName] = methodSymbol.Name;
-
-            handlers.Add(new EventHandlerModel(methodSymbol.Name, eventTypeFullName, parameters.Length > 0));
-        }
-
-        var model = new WireableClassModel
-        {
-            ClassName = className,
-            Namespace = namespaceName,
-            IsPartial = isPartial,
-            DerivesFromNode = derivesFromNode,
-            IsNested = isNested,
-            FilePathHint = firstDecl.SyntaxTree.FilePath,
-            Handlers = new EquatableArray<EventHandlerModel>(handlers),
-        };
-
-        return (model, diagnostics.ToImmutable());
+        return new HandlerCandidate(type, method.Name, location, handler, null);
     }
 
-    private static bool DerivesFromGodotNode(INamedTypeSymbol symbol)
+    private static EquatableArray<WireableClassModel> BuildModels(
+        ImmutableArray<HandlerCandidate> all, CancellationToken ct)
     {
-        for (var current = symbol; current is not null; current = current.BaseType)
+        var groups = new Dictionary<string, List<HandlerCandidate>>(StringComparer.Ordinal);
+
+        foreach (var candidate in all)
         {
-            if (current.ToDisplayString() == "Godot.Node") return true;
+            ct.ThrowIfCancellationRequested();
+
+            if (!groups.TryGetValue(candidate.Type.Key, out var list))
+                groups[candidate.Type.Key] = list = [];
+            list.Add(candidate);
         }
-        return false;
+
+        // Deterministic order regardless of which file Roslyn happened to hand us first.
+        var keys = groups.Keys.ToList();
+        keys.Sort(StringComparer.Ordinal);
+
+        var result = new List<WireableClassModel>(keys.Count);
+
+        foreach (var key in keys)
+        {
+            var list = groups[key];
+            list.Sort(static (a, b) => LocationInfo.Compare(a.MethodLocation, b.MethodLocation));
+
+            var type = list[0].Type;
+            var firstLocation = list[0].MethodLocation;
+            var diagnostics = new List<DiagnosticData>();
+
+            if (type.IsNested)
+                diagnostics.Add(DiagnosticData.Create(EventHandlerDiagnostics.NestedClassNotSupported, firstLocation, type.Name));
+            if (!type.IsPartial)
+                diagnostics.Add(DiagnosticData.Create(EventHandlerDiagnostics.ContainingClassNotPartial, firstLocation, type.Name));
+            if (!type.DerivesFromNode)
+                diagnostics.Add(DiagnosticData.Create(EventHandlerDiagnostics.ContainingClassNotNode, firstLocation, type.Name));
+
+            var handlers = new List<EventHandlerModel>();
+            var seenEventTypes = new Dictionary<string, string>(StringComparer.Ordinal);
+
+            foreach (var candidate in list)
+            {
+                if (candidate.Diagnostic is not null)
+                    diagnostics.Add(candidate.Diagnostic);
+
+                if (candidate.Handler is not { } handler)
+                    continue;
+
+                if (seenEventTypes.TryGetValue(handler.EventTypeFullName, out var firstMethodName))
+                {
+                    diagnostics.Add(DiagnosticData.Create(
+                        EventHandlerDiagnostics.DuplicateHandlerForType,
+                        candidate.MethodLocation,
+                        type.Name,
+                        handler.EventTypeDisplay,
+                        firstMethodName,
+                        handler.MethodName));
+                    continue;
+                }
+
+                seenEventTypes[handler.EventTypeFullName] = handler.MethodName;
+                handlers.Add(handler);
+            }
+
+            result.Add(new WireableClassModel(
+                type,
+                new EquatableArray<EventHandlerModel>(handlers),
+                new EquatableArray<DiagnosticData>(diagnostics)));
+        }
+
+        return new EquatableArray<WireableClassModel>(result);
+    }
+
+    private static void Emit(SourceProductionContext spc, WireableClassModel model)
+    {
+        foreach (var diagnostic in model.Diagnostics)
+            spc.ReportDiagnostic(diagnostic.ToDiagnostic());
+
+        var type = model.Type;
+
+        if (model.Handlers.Count == 0) return;
+        if (!type.IsPartial || !type.DerivesFromNode || type.IsNested) return;
+
+        var hintPrefix = string.IsNullOrEmpty(type.Namespace)
+            ? type.HintName
+            : $"{type.Namespace}.{type.HintName}";
+
+        spc.AddSource($"{hintPrefix}.EventHandlers.g.cs", GenerateSource(model));
     }
 
     private static string GenerateSource(WireableClassModel model)
     {
+        var type = model.Type;
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated/>");
-        sb.AppendLine("// Generated by GodotUtilities.Events.SourceGenerators.EventHandlerGenerator");
+        sb.AppendLine("// Generated by GodotUtilities.SourceGenerators.EventHandlerGenerator");
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
 
-        var hasNamespace = !string.IsNullOrEmpty(model.Namespace);
+        var hasNamespace = !string.IsNullOrEmpty(type.Namespace);
         if (hasNamespace)
         {
-            sb.Append("namespace ").Append(model.Namespace).AppendLine();
+            sb.Append("namespace ").Append(type.Namespace).AppendLine();
             sb.AppendLine("{");
         }
 
         var indent = hasNamespace ? "    " : "";
 
-        sb.Append(indent).Append("partial class ").Append(model.ClassName).AppendLine();
+        sb.Append(indent).Append("partial class ").Append(type.DeclarationName).AppendLine();
         sb.Append(indent).AppendLine("{");
         sb.Append(indent).AppendLine("    /// <summary>");
         sb.Append(indent).AppendLine("    /// Subscribes every [EventHandler] method on this class to the EventBus.");
-        sb.Append(indent).AppendLine("    /// Generated at compile time — no reflection involved. Call once, typically");
-        sb.Append(indent).AppendLine("    /// from _Ready(). Automatically unsubscribed when this node leaves the tree.");
+        sb.Append(indent).AppendLine("    /// Generated at compile time - no reflection involved. Call from _EnterTree()");
+        sb.Append(indent).AppendLine("    /// (or NotificationEnterTree) so subscriptions are restored if the node is reparented;");
+        sb.Append(indent).AppendLine("    /// calling it from _Ready() works too but won't re-subscribe after a reparent.");
+        sb.Append(indent).AppendLine("    /// Subscriptions are removed automatically when the node leaves the tree.");
         sb.Append(indent).AppendLine("    /// </summary>");
         sb.Append(indent).AppendLine("    public void WireEvents()");
         sb.Append(indent).AppendLine("    {");
@@ -247,7 +229,7 @@ public sealed class EventHandlerGenerator : IIncrementalGenerator
         sb.Append(indent).AppendLine("            return;");
         sb.AppendLine();
 
-        foreach (var handler in model.Handlers.Items)
+        foreach (var handler in model.Handlers)
         {
             var lambda = handler.TakesParameter
                 ? $"({handler.EventTypeFullName} evt) => {handler.MethodName}(evt)"
