@@ -30,16 +30,15 @@ public static class EventBus
     public static void AddListener<T>(Action<T> listener, Node owner = null)
     {
         GetOrCreate<T>().Add(listener);
-        if (owner != null)
+
+        if (owner is not null)
             owner.TreeExiting += () => RemoveListener(listener);
     }
 
     /// <summary>Unsubscribes a previously registered listener.</summary>
     public static bool RemoveListener<T>(Action<T> listener)
     {
-        if (_buckets.TryGetValue(typeof(T), out var raw) && ((TypedBucket<T>)raw).Remove(listener))
-            return true;
-        return false;
+        return _buckets.TryGetValue(typeof(T), out var raw) && ((TypedBucket<T>)raw).Remove(listener);
     }
     
     #endregion

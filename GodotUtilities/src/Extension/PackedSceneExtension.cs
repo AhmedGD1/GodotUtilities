@@ -19,9 +19,10 @@ public static class PackedSceneExtension
     {
         var instance = packedScene.Instantiate<T>();
         parent.AddChild(instance);
-
+        
         if (globalPos.HasValue)
             instance.GlobalPosition = globalPos.Value;
+
         return instance;
     }
 }

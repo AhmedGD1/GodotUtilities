@@ -18,8 +18,8 @@ namespace GodotUtilities.Pooling;
 /// <param name="onRelease">Optional callback invoked with the instance whenever one is returned.</param>
 public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> onGet = null, Action<T> onRelease = null)
 {
-    private readonly HashSet<T> active = [];
-    private readonly Stack<T> free = new();
+    private readonly HashSet<T> _active = [];
+    private readonly Stack<T> _free = new();
 
     /// <summary>
     /// If <c>true</c>, <see cref="TryGet"/> creates a new instance via the pool's factory
@@ -27,13 +27,8 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
     /// </summary>
     public bool Extensible { get; set; } = extensible;
 
-    /// <summary>The number of instances currently checked out from the pool.</summary>
-    public int ActiveCount => active.Count;
-
-    /// <summary>The number of instances currently available for reuse.</summary>
-    public int FreeCount => free.Count;
-
-    /// <summary>The total number of instances tracked by the pool (active + free).</summary>
+    public int ActiveCount => _active.Count;
+    public int FreeCount => _free.Count;
     public int TotalCount => ActiveCount + FreeCount;
 
     /// <summary>
@@ -45,7 +40,7 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
     public void Prewarm(int count)
     {
         for (int i = 0; i < count; i++)
-            free.Push(factory());
+            _free.Push(factory());
     }
 
     /// <summary>
@@ -59,10 +54,10 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
     /// <returns><c>true</c> if an instance was retrieved; otherwise <c>false</c>.</returns>
     public bool TryGet(out T obj)
     {
-        while (free.TryPeek(out var raw) && raw is GodotObject godotObject && !GodotObject.IsInstanceValid(godotObject))
-            free.Pop();
+        while (_free.TryPeek(out var raw) && raw is GodotObject godotObject && !GodotObject.IsInstanceValid(godotObject))
+            _free.Pop();
 
-        if (free.TryPop(out var result)) obj = result;
+        if (_free.TryPop(out var result)) obj = result;
         else if (Extensible) obj = factory();
         else
         {
@@ -70,7 +65,7 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
             return false;
         }
 
-        active.Add(obj);
+        _active.Add(obj);
 
         if (obj is IPoolable poolable)
             poolable.OnGet();
@@ -107,11 +102,11 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
     /// </returns>
     public bool TryRelease(T obj)
     {
-        if (!active.Contains(obj))
+        if (!_active.Contains(obj))
             return false;
 
-        active.Remove(obj);
-        free.Push(obj);
+        _active.Remove(obj);
+        _free.Push(obj);
 
         if (obj is IPoolable poolable)
             poolable.OnRelease();
@@ -137,15 +132,15 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
     /// </summary>
     public void ReleaseAll()
     {
-        foreach (var obj in active)
+        foreach (var obj in _active)
         {
             if (obj is IPoolable poolable)
                 poolable.OnRelease();
             onRelease?.Invoke(obj);
-            free.Push(obj);
+            _free.Push(obj);
         }
 
-        active.Clear();
+        _active.Clear();
     }
 
     /// <summary>
@@ -156,9 +151,9 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
     /// <param name="onTrim">Optional callback invoked with each discarded instance.</param>
     public void Trim(int targetSize, Action<T> onTrim = null)
     {
-        while (free.Count > targetSize)
+        while (_free.Count > targetSize)
         {
-            var obj = free.Pop();
+            var obj = _free.Pop();
             onTrim?.Invoke(obj);
         }
     }
@@ -170,6 +165,6 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
     public void Clear()
     {
         ReleaseAll();
-        free.Clear();
+        _free.Clear();
     }
 }

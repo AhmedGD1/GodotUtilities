@@ -21,10 +21,12 @@ public override void _PhysicsProcess(double delta)
 }
 ```
 
-- `BufferAction(name, duration)` — starts (or refreshes) a buffer window for an action name (`StringName`). Throws `ArgumentOutOfRangeException` if `duration <= 0`.
-- `TryConsume(name)` — if the action is still within its buffer window, removes and returns `true`; otherwise `false`.
+- `BufferAction(name, duration)` — starts a buffer window of `duration` seconds for an action name (`StringName`). If the action is already buffered, its remaining time is reset to `duration`. Throws `ArgumentOutOfRangeException` if `duration <= 0`.
+- `TryConsume(name)` — if the action is still within its buffer window, removes it and returns `true`; otherwise `false`.
 - `Has(name)` — checks validity without consuming.
-- `Tick(dt)` — must be called once per frame/physics tick to count down and expire buffered actions.
-- `ConsumeAll()` — clears every currently buffered action.
+- `Tick(dt)` — must be called once per frame/physics tick to count down and expire buffered actions (an action expires when its remaining time reaches zero).
+- `ConsumeAll()` — clears every currently buffered action, valid or not.
+
+Any number of different actions can be buffered at once. `InputBuffer` is a class, so share one instance across everything that should see the same buffer, or give each character its own.
 
 [← back to README](../README.md)

@@ -89,7 +89,7 @@ public readonly struct RaycastHit3D
 {
     public Rid ColliderRid { get; init; }
     
-    public int ColliderId { get; init; }
+    public ulong ColliderId { get; init; }
     public int Shape { get; init; }
     
     public Vector3 Normal { get; init; }
@@ -103,7 +103,7 @@ public readonly struct RaycastHit3D
         Normal = result["normal"].AsVector3(),
         Collider = result["collider"].As<CollisionObject3D>(),
         ColliderRid = result["rid"].AsRid(),
-        ColliderId = result["collider_id"].AsInt32(),
-        Shape = result["shape"].AsInt32()
+        Shape = result["shape"].AsInt32(),
+        ColliderId = (ulong)result["collider_id"]
     };
 }

@@ -2,28 +2,15 @@ using Godot;
 
 namespace GodotUtilities;
 
-/// <summary>
-/// General-purpose math helpers: framerate-independent lerping, clamping,
-/// normalization, and RNG-based utilities built on a shared <see cref="RandomNumberGenerator"/>.
-/// </summary>
 public static class MathUtil
 {
-    /// <summary>
-    /// The shared random number generator used by the random-utility methods in this class.
-    /// Seeded automatically on first use; call <see cref="SeedRNG"/> to use a fixed seed instead.
-    /// </summary>
     public static RandomNumberGenerator RNG { get; private set; } = new();
 
     static MathUtil() => RNG.Randomize();
 
-    /// <summary>
-    /// Replaces <see cref="RNG"/> with a new generator seeded with <paramref name="seed"/>,
-    /// producing deterministic output from subsequent random calls.
-    /// </summary>
-    /// <param name="seed">The seed value to use.</param>
     public static void SeedRNG(ulong seed) => RNG = new() { Seed = seed };
 
-    #region Lerp
+    #region Expo Lerp
 
     /// <summary>
     /// Exponentially interpolates from <paramref name="a"/> toward <paramref name="b"/>,
@@ -73,6 +60,27 @@ public static class MathUtil
     public static Vector2 GetRandomDirection()
     {
         return Vector2.FromAngle(RNG.Randf() * Mathf.Tau);
+    }
+
+    public static Vector2 GetRandomPointInCircle(float radius)
+    {
+        float distance = Mathf.Sqrt(RNG.Randf()) * radius;
+        return GetRandomDirection() * distance;
+    }
+
+    public static Vector3 GetRandomDirection3D()
+    {
+        float phi = RNG.Randf() * Mathf.Tau;
+        float z = RNG.RandfRange(-1f, 1f);
+        float r = Mathf.Sqrt(1f - z * z);
+
+        return new Vector3(r * Mathf.Cos(phi), r * Mathf.Sin(phi), z);
+    }
+
+    public static Vector3 RandomPointInSphere(float radius)
+    {
+        float r = radius * Mathf.Pow(RNG.Randf(), 1f / 3f);
+        return GetRandomDirection3D() * r;
     }
 
     /// <summary>

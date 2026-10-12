@@ -50,7 +50,8 @@ internal sealed class TypedBucket<T> : IClearable
         
         for (int i = 0; i < _count; i++)
         {
-            if (_handlers[i] != h) continue;
+            if (_handlers[i] != h) 
+                continue;
 
             Array.Copy(_handlers, i + 1, _handlers, i, _count - i - 1);
             _handlers[--_count] = null!;
@@ -62,6 +63,7 @@ internal sealed class TypedBucket<T> : IClearable
     public void Fire(T evt)
     {
         _firing = true;
+
         try
         {
             for (int i = 0; i < _count; i++) 
@@ -75,6 +77,7 @@ internal sealed class TypedBucket<T> : IClearable
             {
                 foreach (var h in _pending)
                     DoRemove(h); 
+                
                 _pending.Clear();
             }
         }

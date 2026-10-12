@@ -92,6 +92,7 @@ public static class FileSystem
                 var id = file.GetBaseName().ToSnakeCase();
                 paths.TryAdd(id, path);
             },
+            
             includeSubdirectories: recursive
         );
 

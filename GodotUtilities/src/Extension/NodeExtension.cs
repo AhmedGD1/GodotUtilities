@@ -16,9 +16,9 @@ public static class NodeExtension
 
     public static T GetSibling<T>(this Node node, int index) where T : Node => (T)node.GetParent().GetChild(index);
     
-    public static IEnumerable<T> GetChildrenOfType<T>(this Node node) where T : Node => node.GetChildren().OfType<T>();
-
     public static T GetLastChild<T>(this Node node) where T : Node => node.GetChild<T>(node.GetChildCount() - 1);
+
+    public static IEnumerable<T> GetChildrenOfType<T>(this Node node) where T : Node => node.GetChildren().OfType<T>();
 
     public static void QueueFreeChildren(this Node node)
     {
@@ -54,14 +54,8 @@ public static class NodeExtension
         return false;
     }
 
-    public static List<Node> GetAllDescendants(this Node node)
+    public static Node[] GetDescendants(this Node node, bool recursive = true, bool owned = true)
     {
-        var result = new List<Node>();
-        foreach (var child in node.GetChildren())
-        {
-            result.AddRange(child.GetAllDescendants());
-            result.Add(child);
-        }
-        return result;
+        return [.. node.FindChildren("*", "", recursive, owned)];
     }
 }

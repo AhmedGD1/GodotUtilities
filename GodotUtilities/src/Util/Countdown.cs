@@ -20,63 +20,26 @@ namespace GodotUtilities;
 /// <see cref="Start(double)"/> is called.
 /// </para>
 /// </remarks>
-/// <param name="duration">
+/// <param name="baseDuration">
 /// The default duration, in seconds, used when calling <see cref="Start()"/>.
 /// </param>
-public struct Countdown(double duration)
+public struct Countdown(double baseDuration)
 {
-    private double currentDuration;
-    private double remaining;
+    private double _duration, _remaining;
 
-    /// <summary>
-    /// Gets whether the countdown has finished.
-    /// </summary>
-    public readonly bool IsFinished => remaining <= 0.0;
+    public readonly bool IsFinished => _remaining <= 0.0;
 
-    /// <summary>
-    /// Gets the amount of time remaining, in seconds.
-    /// Returns zero when the countdown has finished.
-    /// </summary>
-    public readonly double TimeLeft => Mathf.Max(0.0, remaining);
+    public readonly double TimeLeft => Mathf.Max(0.0, _remaining);
 
-    /// <summary>
-    /// Gets the normalized progress of the countdown from <c>0</c> to <c>1</c>.
-    /// </summary>
-    /// <remarks>
-    /// Returns <c>0</c> when the countdown has just started and <c>1</c>
-    /// when it has finished. A zero-duration countdown reports a progress
-    /// of <c>1</c>.
-    /// </remarks>
-    public readonly float Progress => currentDuration != 0.0
-        ? (float)(1.0 - (remaining / currentDuration))
-        : 1f;
+    public readonly float Progress => _duration != 0.0 ? (float)(1.0 - (_remaining / _duration)) : 1f;
 
-    /// <summary>
-    /// Stops the countdown and resets its remaining time to zero.
-    /// </summary>
-    public void Stop() => remaining = 0.0;
+    public void Stop() => _remaining = 0.0;
 
-    /// <summary>
-    /// Starts or restarts the countdown using its configured default duration.
-    /// </summary>
-    public void Start() => remaining = currentDuration = duration;
+    public void Start() => _remaining = _duration = baseDuration;
 
-    /// <summary>
-    /// Starts or restarts the countdown using the specified duration.
-    /// </summary>
-    /// <param name="sec">The duration, in seconds.</param>
-    public void Start(double sec) => remaining = currentDuration = sec;
+    public void Start(double sec) => _remaining = _duration = sec;
 
-    /// <summary>
-    /// Starts or restarts the countdown using a random duration within the specified range.
-    /// </summary>
-    /// <param name="minDuration">The minimum duration, in seconds, inclusive.</param>
-    /// <param name="maxDuration">The maximum duration, in seconds, inclusive.</param>
-    public void StartRandom(double minDuration, double maxDuration)
-    {
-        double sec = GD.RandRange(minDuration, maxDuration);
-        Start(sec);
-    }
+    public void StartRandom(double minDuration, double maxDuration) => Start(GD.RandRange(minDuration, maxDuration));
 
     /// <summary>
     /// Advances the countdown by the specified amount of time.
@@ -97,11 +60,11 @@ public struct Countdown(double duration)
         if (IsFinished)
             return false;
 
-        remaining -= Mathf.Max(0.0, dt);
+        _remaining -= Mathf.Max(0.0, dt);
 
-        if (remaining <= 0.0)
+        if (_remaining <= 0.0)
         {
-            remaining = 0.0;
+            _remaining = 0.0;
             return true;
         }
 

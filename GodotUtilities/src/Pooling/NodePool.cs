@@ -13,8 +13,8 @@ namespace GodotUtilities.Pooling;
 /// <param name="root">The node new instances are parented under.</param>
 public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
 {
-    private readonly HashSet<T> active = [];
-    private readonly Stack<T> free = new();
+    private readonly HashSet<T> _active = [];
+    private readonly Stack<T> _free = new();
 
     /// <summary>
     /// If <c>true</c>, <see cref="TryGet"/> instantiates a new node via
@@ -23,13 +23,8 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// </summary>
     public bool Extensible { get; set; } = true;
 
-    /// <summary>The number of nodes currently checked out from the pool.</summary>
-    public int ActiveCount => active.Count;
-
-    /// <summary>The number of nodes currently available for reuse.</summary>
-    public int FreeCount => free.Count;
-
-    /// <summary>The total number of nodes tracked by the pool (active + free).</summary>
+    public int ActiveCount => _active.Count;
+    public int FreeCount => _free.Count;
     public int TotalCount => ActiveCount + FreeCount;
 
     /// <summary>
@@ -43,7 +38,7 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
         for (int i = 0; i < count; i++)
         {
             var node = CreateNew();
-            free.Push(node);
+            _free.Push(node);
         }
     }
 
@@ -76,10 +71,10 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// <returns><c>true</c> if a node was retrieved; otherwise <c>false</c>.</returns>
     public bool TryGet(out T node)
     {
-        while (free.TryPeek(out var raw) && raw is GodotObject godotObject && !GodotObject.IsInstanceValid(godotObject))
-            free.Pop();
+        while (_free.TryPeek(out var raw) && raw is GodotObject godotObject && !GodotObject.IsInstanceValid(godotObject))
+            _free.Pop();
 
-        if (free.TryPop(out var result)) node = result;
+        if (_free.TryPop(out var result)) node = result;
         else if (Extensible) node = CreateNew();
         else
         {
@@ -88,7 +83,7 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
         }
 
         SetActive(node, true);
-        active.Add(node);
+        _active.Add(node);
 
         if (node is IPoolable poolable)
             poolable.OnGet();
@@ -122,16 +117,16 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// </returns>
     public bool TryRelease(T node)
     {
-        if (!active.Contains(node))
+        if (!_active.Contains(node))
             return false;
+
+        SetActive(node, false);
+        _active.Remove(node);
+        _free.Push(node);
 
         if (node is IPoolable poolable)
             poolable.OnRelease();
             
-        active.Remove(node);
-        SetActive(node, false);
-        free.Push(node);
-        
         return true;
     }
 
@@ -153,7 +148,7 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// </summary>
     public void ReleaseAll()
     {
-        foreach (var node in active)
+        foreach (var node in _active)
         {
             if (!GodotObject.IsInstanceValid(node))
                 continue;
@@ -162,10 +157,10 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
 
             if (node is IPoolable poolable)
                 poolable.OnRelease();
-            free.Push(node);
+            _free.Push(node);
         }
 
-        active.Clear();
+        _active.Clear();
     }
 
     /// <summary>
@@ -175,7 +170,7 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// </summary>
     public void Clear()
     {
-        foreach (var node in active)
+        foreach (var node in _active)
         {
             if (GodotObject.IsInstanceValid(node))
             {
@@ -185,12 +180,12 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
             }
         }
 
-        foreach (var node in free)
+        foreach (var node in _free)
             if (GodotObject.IsInstanceValid(node))
                 node.CallDeferred(Node.MethodName.QueueFree);
 
-        free.Clear();
-        active.Clear();
+        _free.Clear();
+        _active.Clear();
     }
 
     /// <summary>
@@ -202,9 +197,9 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// <param name="onTrim">Optional callback invoked with each discarded node before it's freed.</param>
     public void Trim(int targetSize, Action<T> onTrim = null)
     {
-        while (free.Count > targetSize)
+        while (_free.Count > targetSize)
         {
-            var node = free.Pop();
+            var node = _free.Pop();
 
             if (!GodotObject.IsInstanceValid(node))
                 continue;

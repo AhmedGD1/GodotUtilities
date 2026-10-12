@@ -1,238 +1,301 @@
-// This script is originally made by FireBelley Games & modified by me
 using Godot;
 
 namespace GodotUtilities.Logic;
 
-public class WeightedLootTable<T>(RandomNumberGenerator rng = null)
+
+public sealed class WeightedLootTable<T>(RandomNumberGenerator rng = null)
 {
-    public record LootItem
+    public readonly record struct LootItem(T Item, int Weight);
+
+    private RandomNumberGenerator _rng = rng;
+
+    private readonly List<LootItem> _entries = [];
+
+    private int _totalWeight;
+
+    private RandomNumberGenerator Rng => _rng ?? MathUtil.RNG;
+
+    public bool IsEmpty => _entries.Count == 0;
+
+    public int TotalWeight => _totalWeight;
+
+    public int ItemCount => _entries.Count;
+
+    public IReadOnlyList<LootItem> Items => _entries;
+
+    #region Configuration
+
+    /// <summary>Uses <paramref name="rng"/> for picks. Pass <c>null</c> to fall back to <see cref="MathUtil.RNG"/>.</summary>
+    public void SetRandom(RandomNumberGenerator rng) => _rng = rng;
+
+    /// <summary>Adds an entry. Returns the table for chaining.</summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="weight"/> is not positive.</exception>
+    /// <exception cref="InvalidOperationException">The total weight would exceed <see cref="int.MaxValue"/>.</exception>
+    public WeightedLootTable<T> AddItem(T item, int weight)
     {
-        public T Item { get; init; }
-        public int Weight { get; init; }
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(weight, 0);
 
-        public LootItem(T item, int weight)
-        {
-            if (weight <= 0) throw new ArgumentException("Weight must be greater than 0", nameof(weight));
+        if ((long)_totalWeight + weight > int.MaxValue)
+            throw new InvalidOperationException("Total weight would exceed int.MaxValue.");
 
-            Item = item;
-            Weight = weight;
-        }
+        _entries.Add(new LootItem(item, weight));
+        _totalWeight += weight;
+
+        return this;
     }
 
-    private readonly List<LootItem> items = [];
-    private RandomNumberGenerator rng = rng ?? MathUtil.RNG;
-    private int totalWeight = 0;
-
-    public bool IsEmpty => items.Count == 0;
-    
-    public int TotalWeight => totalWeight;
-    public int ItemCount => items.Count;
-    
-    public List<LootItem> Items => [.. items];
-
-    public void SetRandom(RandomNumberGenerator newRng)
-    {
-        rng = newRng;
-    }
-
-    public void AddItem(T item, int weight)
-    {
-        var lootItem = new LootItem(item, weight);
-        items.Add(lootItem);
-        totalWeight += weight;
-    }
-
+    /// <summary>Removes every entry equal to <paramref name="item"/>. Returns whether any were removed.</summary>
     public bool RemoveItem(T item)
     {
-        bool removed = false;
-        for (int i = items.Count - 1; i >= 0; i--)
-        {
-            if (EqualityComparer<T>.Default.Equals(items[i].Item, item))
-            {
-                totalWeight -= items[i].Weight;
-                items.RemoveAt(i);
-                removed = true;
-            }
-        }
-        return removed;
+        var comparer = EqualityComparer<T>.Default;
+        int removed = _entries.RemoveAll(e => comparer.Equals(e.Item, item));
+
+        if (removed == 0)
+            return false;
+
+        RecalculateTotal();
+        return true;
     }
 
     public void Clear()
     {
-        items.Clear();
-        totalWeight = 0;
+        _entries.Clear();
+        _totalWeight = 0;
     }
 
-    public T PickItem()
+    /// <summary>
+    /// Sets the weight of every entry equal to <paramref name="item"/>.
+    /// Returns <c>false</c> if the item isn't in the table.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="weight"/> is not positive.</exception>
+    public bool SetItemWeight(T item, int weight)
     {
-        if (IsEmpty) return default;
-
-        int randomValue = rng.RandiRange(0, totalWeight - 1);
-        int currentWeight = 0;
-
-        foreach (var item in items)
-        {
-            currentWeight += item.Weight;
-            if (randomValue < currentWeight) 
-                return item.Item;
-        }
-
-        return items[^1].Item;
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(weight, 0);
+        return Reweight(item, _ => weight);
     }
 
-    public T PickItem(Func<T, bool> condition)
+    /// <summary>
+    /// Adds <paramref name="change"/> (may be negative) to the weight of every entry equal to
+    /// <paramref name="item"/>, never going below 1. Returns <c>false</c> if the item isn't in the table.
+    /// </summary>
+    public bool ModifyItemWeight(T item, int change) => Reweight(item, w => (int)Math.Clamp((long)w + change, 1, int.MaxValue));
+
+    #endregion
+
+    #region Queries
+
+    /// <summary>True if at least one entry equals <paramref name="item"/>.</summary>
+    public bool Contains(T item)
     {
-        var eligibleItems = items.Where(item => condition(item.Item)).ToList();
-        if (eligibleItems.Count == 0) return default;
+        var comparer = EqualityComparer<T>.Default;
 
-        int totalEligibleWeight = eligibleItems.Sum(item => item.Weight);
-        int randomValue = rng.RandiRange(0, totalEligibleWeight - 1);
-        int currentWeight = 0;
+        foreach (var entry in _entries)
+            if (comparer.Equals(entry.Item, item))
+                return true;
 
-        foreach (var item in eligibleItems)
-        {
-            currentWeight += item.Weight;
-            if (randomValue < currentWeight) return item.Item;
-        }
-
-        return eligibleItems[^1].Item;
+        return false;
     }
 
-    public List<T> PickItems(int count, bool allowDuplicates = true)
+    /// <summary>Combined weight of all entries equal to <paramref name="item"/>, or 0 if absent.</summary>
+    public int GetItemWeight(T item)
     {
-        if (IsEmpty || count <= 0) return [];
+        var comparer = EqualityComparer<T>.Default;
+        long sum = 0;
 
-        var result = new List<T>();
+        foreach (var entry in _entries)
+            if (comparer.Equals(entry.Item, item))
+                sum += entry.Weight;
 
-        if (allowDuplicates)
-        {
-            for (int i = 0; i < count; i++)
-                result.Add(PickItem());
-        }
-        else
-        {
-            var availableItems = new List<LootItem>(items);
-            int availableWeight = totalWeight;
-
-            for (int i = 0; i < count && availableItems.Count > 0; i++)
-            {
-                int randomValue = rng.RandiRange(0, availableWeight - 1);
-                int currentWeight = 0;
-
-                for (int j = 0; j < availableItems.Count; j++)
-                {
-                    currentWeight += availableItems[j].Weight;
-                    if (randomValue < currentWeight)
-                    {
-                        result.Add(availableItems[j].Item);
-                        availableWeight -= availableItems[j].Weight;
-                        availableItems.RemoveAt(j);
-                        break;
-                    }
-                }
-            }
-        }
-
-        return result;
+        return (int)sum;
     }
+
+    /// <summary>Enumerates all entries.</summary>
+    public IEnumerable<LootItem> GetAllItems() => _entries;
+
+    /// <summary>Enumerates the items (not entries) that satisfy <paramref name="condition"/>.</summary>
+    public IEnumerable<T> GetItems(Func<T, bool> condition)
+    {
+        foreach (var entry in _entries)
+            if (condition(entry.Item))
+                yield return entry.Item;
+    }
+
+    /// <summary>
+    /// The chance, from 0 to 1, that a single <see cref="PickItem()"/> returns <paramref name="item"/>.
+    /// </summary>
+    public float GetChance(T item) => _totalWeight == 0 ? 0f : (float)GetItemWeight(item) / _totalWeight;
+
+    #endregion
+
+    #region Picking
+
+    public T PickItem() => TryPickItem(out var item) ? item : default;
+
+    public T PickItem(Func<T, bool> condition) => TryPickItem(condition, out var item) ? item : default;
+
+    public bool TryPickItem(out T item)
+    {
+        if (_entries.Count == 0)
+        {
+            item = default;
+            return false;
+        }
+
+        item = _entries[Roll(_entries, _totalWeight, Rng)].Item;
+        return true;
+    }
+
+    public bool TryPickItem(Func<T, bool> condition, out T item)
+    {
+        if (condition is null)
+            return TryPickItem(out item);
+
+        var rng = Rng;
+        int running = 0;
+        int chosen = -1;
+
+        for (int i = 0; i < _entries.Count; i++)
+        {
+            var entry = _entries[i];
+
+            if (!condition(entry.Item))
+                continue;
+
+            running += entry.Weight;
+
+            if (rng.RandiRange(0, running - 1) < entry.Weight)
+                chosen = i;
+        }
+
+        if (chosen < 0)
+        {
+            item = default;
+            return false;
+        }
+
+        item = _entries[chosen].Item;
+        return true;
+    }
+
+    public List<T> PickItems(int count, bool allowDuplicates = true) =>
+        PickItems(count, null, allowDuplicates);
 
     public List<T> PickItems(int count, Func<T, bool> condition, bool allowDuplicates = true)
     {
-        if (count <= 0) return [];
-
-        var eligibleItems = items.Where(item => condition(item.Item)).ToList();
-        if (eligibleItems.Count == 0) return [];
-
         var result = new List<T>();
+
+        if (count <= 0 || _entries.Count == 0)
+            return result;
+
+        List<LootItem> source = _entries;
+        int total = _totalWeight;
+
+        if (condition is not null || !allowDuplicates)
+        {
+            source = new List<LootItem>(_entries.Count);
+            total = 0;
+
+            foreach (var entry in _entries)
+            {
+                if (condition is not null && !condition(entry.Item))
+                    continue;
+
+                source.Add(entry);
+                total += entry.Weight;
+            }
+
+            if (source.Count == 0)
+                return result;
+        }
+
+        var rng = Rng;
 
         if (allowDuplicates)
         {
-            int totalEligibleWeight = eligibleItems.Sum(item => item.Weight);
-
             for (int i = 0; i < count; i++)
-            {
-                int randomValue = rng.RandiRange(0, totalEligibleWeight - 1);
-                int currentWeight = 0;
+                result.Add(source[Roll(source, total, rng)].Item);
 
-                foreach (var item in eligibleItems)
-                {
-                    currentWeight += item.Weight;
-                    if (randomValue < currentWeight)
-                    {
-                        result.Add(item.Item);
-                        break;
-                    }
-                }
-            }
+            return result;
         }
-        else
+
+        count = Math.Min(count, source.Count);
+
+        for (int i = 0; i < count; i++)
         {
-            var availableItems = new List<LootItem>(eligibleItems);
-            int availableWeight = availableItems.Sum(item => item.Weight);
+            int index = Roll(source, total, rng);
+            var picked = source[index];
 
-            for (int i = 0; i < count && availableItems.Count > 0; i++)
-            {
-                int randomValue = rng.RandiRange(0, availableWeight - 1);
-                int currentWeight = 0;
+            result.Add(picked.Item);
+            total -= picked.Weight;
 
-                for (int j = 0; j < availableItems.Count; j++)
-                {
-                    currentWeight += availableItems[j].Weight;
-                    if (randomValue < currentWeight)
-                    {
-                        result.Add(availableItems[j].Item);
-                        availableWeight -= availableItems[j].Weight;
-                        availableItems.RemoveAt(j);
-                        break;
-                    }
-                }
-            }
+            int last = source.Count - 1;
+            source[index] = source[last];
+            source.RemoveAt(last);
         }
 
         return result;
     }
 
-    public IEnumerable<LootItem> GetAllItems() => items.AsReadOnly();
-    
-    public IEnumerable<T> GetItems(Func<T, bool> condition) =>
-        items.Where(item => condition(item.Item)).Select(item => item.Item);
+    #endregion
 
-    public float GetItemWeight(T item) => items
-        .Where(lootItem => EqualityComparer<T>.Default.Equals(lootItem.Item, item))
-        .Sum(lootItem => lootItem.Weight);
+    #region Internals
 
-    public bool Contains(T item) =>
-        items.Any(lootItem => EqualityComparer<T>.Default.Equals(lootItem.Item, item));
-
-    public void SetItemWeight(T item, int weight)
+    private static int Roll(List<LootItem> source, int totalWeight, RandomNumberGenerator rng)
     {
-        int newWeight = Math.Max(1, weight);
-        
-        for (int i = 0; i < items.Count; i++)
-        {
-            var lootItem = items[i];
-            
-            if (!EqualityComparer<T>.Default.Equals(lootItem.Item, item))
-                continue;
+        int roll = rng.RandiRange(0, totalWeight - 1);
 
-            totalWeight -= lootItem.Weight;
-            items[i] = lootItem with { Weight = newWeight };
-            totalWeight += newWeight;
+        for (int i = 0; i < source.Count; i++)
+        {
+            roll -= source[i].Weight;
+
+            if (roll < 0)
+                return i;
         }
+
+        return source.Count - 1;
     }
 
-    public void ModifyItemWeight(T item, int change)
+    private bool Reweight(T item, Func<int, int> computeWeight)
     {
-        for (int i = 0; i < items.Count; i++)
+        var comparer = EqualityComparer<T>.Default;
+        long newTotal = _totalWeight;
+        bool found = false;
+
+        for (int i = 0; i < _entries.Count; i++)
         {
-            var lootItem = items[i];
-            if (!EqualityComparer<T>.Default.Equals(lootItem.Item, item))
+            if (!comparer.Equals(_entries[i].Item, item))
                 continue;
 
-            int newWeight = Math.Max(1, lootItem.Weight + change);
-            totalWeight -= lootItem.Weight;
-            items[i] = lootItem with { Weight = newWeight };
-            totalWeight += newWeight;
+            found = true;
+            newTotal += computeWeight(_entries[i].Weight) - _entries[i].Weight;
         }
+
+        if (!found)
+            return false;
+
+        if (newTotal > int.MaxValue)
+            throw new InvalidOperationException("Total weight would exceed int.MaxValue.");
+
+        for (int i = 0; i < _entries.Count; i++)
+        {
+            if (comparer.Equals(_entries[i].Item, item))
+                _entries[i] = _entries[i] with { Weight = computeWeight(_entries[i].Weight) };
+        }
+
+        _totalWeight = (int)newTotal;
+        return true;
     }
+
+    private void RecalculateTotal()
+    {
+        int total = 0;
+
+        foreach (var entry in _entries)
+            total += entry.Weight;
+
+        _totalWeight = total;
+    }
+
+    #endregion
 }
+

@@ -4,7 +4,7 @@ namespace GodotUtilities;
 
 public static class SceneTreeExtension
 {
-    public static T GetFirstNodeInGroup<T>(this SceneTree tree, StringName group) where T : Node => (T)tree.GetFirstNodeInGroup(group);
+    public static T GetFirstNodeInGroup<T>(this SceneTree tree, StringName group) where T : Node => tree.GetFirstNodeInGroup(group) as T;
 
     public static T GetFirstNodeInGroup<T>(this SceneTree tree) where T : Node => (T)tree.GetFirstNodeInGroup(typeof(T).Name);
 
