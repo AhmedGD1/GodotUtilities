@@ -6,22 +6,22 @@ public static class TweenExtension
 {
     #region Properties
 
-    private static readonly NodePath PropertyColor = "color";
-    private static readonly NodePath PropertyScale = "scale";
-    private static readonly NodePath PropertyModulate = "modulate";
-    private static readonly NodePath PropertyPosition = "position";
-    private static readonly NodePath PropertyRotation = "rotation";
-    private static readonly NodePath PropertySelfModulate = "self_modulate";
-    private static readonly NodePath PropertyGlobalPosition = "global_position";
-    private static readonly NodePath PropertyRotationDegrees = "rotation_degrees";
+    internal static readonly NodePath PropertyColor = "color";
+    internal static readonly NodePath PropertyScale = "scale";
+    internal static readonly NodePath PropertyModulate = "modulate";
+    internal static readonly NodePath PropertyPosition = "position";
+    internal static readonly NodePath PropertyRotation = "rotation";
+    internal static readonly NodePath PropertySelfModulate = "self_modulate";
+    internal static readonly NodePath PropertyGlobalPosition = "global_position";
+    internal static readonly NodePath PropertyRotationDegrees = "rotation_degrees";
 
-    private static readonly NodePath PropertyOffsetTransformPos = "offset_transform_position";
-    private static readonly NodePath PropertyOffsetTransformRotation = "offset_transform_rotation";
-    private static readonly NodePath PropertyOffsetTransformScale = "offset_transform_scale";
-    private static readonly NodePath PropertyOffsetTransformPosRatio = "offset_transform_position_ratio";
+    internal static readonly NodePath PropertyOffsetTransformPos = "offset_transform_position";
+    internal static readonly NodePath PropertyOffsetTransformRotation = "offset_transform_rotation";
+    internal static readonly NodePath PropertyOffsetTransformScale = "offset_transform_scale";
+    internal static readonly NodePath PropertyOffsetTransformPosRatio = "offset_transform_position_ratio";
 
-    private static readonly NodePath PropertyModulateAlpha = "modulate:a";
-    private static readonly NodePath PropertySelfModulateAlpha = "self_modulate:a";
+    internal static readonly NodePath PropertyModulateAlpha = "modulate:a";
+    internal static readonly NodePath PropertySelfModulateAlpha = "self_modulate:a";
 
     #endregion
 

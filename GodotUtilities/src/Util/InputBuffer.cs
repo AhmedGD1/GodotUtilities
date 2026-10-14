@@ -8,7 +8,7 @@ namespace GodotUtilities;
 /// slightly before it becomes usable (e.g. a jump pressed just before landing)
 /// to still be consumed within a configurable window.
 /// </summary>
-public class InputBuffer
+public sealed class InputBuffer
 {
     private readonly struct BufferedAction
     {

@@ -11,7 +11,7 @@ using GodotUtilities.Logic;
 
 var drops = new WeightedLootTable<string>()
     .AddItem("coin", 70)        // 70 / 100 = 70%
-    .AddItem("potion", 25)      // 25%
+    .AddItem("potion", 25)      // 25%****
     .AddItem("rare_sword", 5);  //  5%
 
 string drop = drops.PickItem();
