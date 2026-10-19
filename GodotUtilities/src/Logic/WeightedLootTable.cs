@@ -2,9 +2,20 @@ using Godot;
 
 namespace GodotUtilities.Logic;
 
-
+/// <summary>
+/// A table of items with integer weights. Items with a higher weight are picked more often.
+/// </summary>
+/// <typeparam name="T">The type of the items in the table.</typeparam>
+/// <param name="rng">
+/// Optional random number generator used for picks. If <c>null</c>, <see cref="MathUtil.RNG"/> is used.
+/// </param>
 public sealed class WeightedLootTable<T>(RandomNumberGenerator rng = null)
 {
+    /// <summary>
+    /// A table entry: an item and its weight.
+    /// </summary>
+    /// <param name="Item">The item that can be picked.</param>
+    /// <param name="Weight">The relative chance of the item being picked. Always positive.</param>
     public readonly record struct LootItem(T Item, int Weight);
 
     private RandomNumberGenerator _rng = rng;
@@ -15,12 +26,16 @@ public sealed class WeightedLootTable<T>(RandomNumberGenerator rng = null)
 
     private RandomNumberGenerator Rng => _rng ?? MathUtil.RNG;
 
+    /// <summary>Whether the table has no entries.</summary>
     public bool IsEmpty => _entries.Count == 0;
 
+    /// <summary>The sum of the weights of all entries.</summary>
     public int TotalWeight => _totalWeight;
 
+    /// <summary>The number of entries in the table.</summary>
     public int ItemCount => _entries.Count;
 
+    /// <summary>All entries in the table, in the order they were added.</summary>
     public IReadOnlyList<LootItem> Items => _entries;
 
     #region Configuration
@@ -57,6 +72,7 @@ public sealed class WeightedLootTable<T>(RandomNumberGenerator rng = null)
         return true;
     }
 
+    /// <summary>Removes all entries from the table.</summary>
     public void Clear()
     {
         _entries.Clear();
@@ -129,10 +145,18 @@ public sealed class WeightedLootTable<T>(RandomNumberGenerator rng = null)
 
     #region Picking
 
+    /// <summary>Picks a random item, respecting weights.</summary>
+    /// <returns>The picked item, or <c>default</c> if the table is empty.</returns>
     public T PickItem() => TryPickItem(out var item) ? item : default;
 
+    /// <summary>Picks a random item among those that satisfy <paramref name="condition"/>, respecting weights.</summary>
+    /// <param name="condition">Filter for the items that can be picked. If <c>null</c>, all items are eligible.</param>
+    /// <returns>The picked item, or <c>default</c> if no item is eligible.</returns>
     public T PickItem(Func<T, bool> condition) => TryPickItem(condition, out var item) ? item : default;
 
+    /// <summary>Tries to pick a random item, respecting weights.</summary>
+    /// <param name="item">The picked item, or <c>default</c> if the table is empty.</param>
+    /// <returns><c>true</c> if an item was picked; otherwise <c>false</c>.</returns>
     public bool TryPickItem(out T item)
     {
         if (_entries.Count == 0)
@@ -145,6 +169,10 @@ public sealed class WeightedLootTable<T>(RandomNumberGenerator rng = null)
         return true;
     }
 
+    /// <summary>Tries to pick a random item among those that satisfy <paramref name="condition"/>, respecting weights.</summary>
+    /// <param name="condition">Filter for the items that can be picked. If <c>null</c>, all items are eligible.</param>
+    /// <param name="item">The picked item, or <c>default</c> if no item is eligible.</param>
+    /// <returns><c>true</c> if an item was picked; otherwise <c>false</c>.</returns>
     public bool TryPickItem(Func<T, bool> condition, out T item)
     {
         if (condition is null)
@@ -177,9 +205,22 @@ public sealed class WeightedLootTable<T>(RandomNumberGenerator rng = null)
         return true;
     }
 
+    /// <summary>Picks several random items, respecting weights.</summary>
+    /// <param name="count">How many items to pick.</param>
+    /// <param name="allowDuplicates">
+    /// If <c>false</c>, each entry can be picked at most once, so fewer than <paramref name="count"/> items may be returned.
+    /// </param>
+    /// <returns>The picked items. Empty if <paramref name="count"/> is not positive or the table is empty.</returns>
     public List<T> PickItems(int count, bool allowDuplicates = true) =>
         PickItems(count, null, allowDuplicates);
 
+    /// <summary>Picks several random items among those that satisfy <paramref name="condition"/>, respecting weights.</summary>
+    /// <param name="count">How many items to pick.</param>
+    /// <param name="condition">Filter for the items that can be picked. If <c>null</c>, all items are eligible.</param>
+    /// <param name="allowDuplicates">
+    /// If <c>false</c>, each entry can be picked at most once, so fewer than <paramref name="count"/> items may be returned.
+    /// </param>
+    /// <returns>The picked items. Empty if <paramref name="count"/> is not positive or no item is eligible.</returns>
     public List<T> PickItems(int count, Func<T, bool> condition, bool allowDuplicates = true)
     {
         var result = new List<T>();
@@ -298,4 +339,3 @@ public sealed class WeightedLootTable<T>(RandomNumberGenerator rng = null)
 
     #endregion
 }
-

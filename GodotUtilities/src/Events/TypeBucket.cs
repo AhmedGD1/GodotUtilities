@@ -15,7 +15,7 @@ internal sealed class TypedBucket<T> : IClearable
     private readonly List<Action<T>> _pending = [];
 
     private int _count;
-    private bool _firing;
+    private int _depth;
 
     public void Add(Action<T> h)
     {
@@ -32,11 +32,11 @@ internal sealed class TypedBucket<T> : IClearable
 
     public bool Remove(Action<T> h)
     {
-        if (_firing)
+        if (_depth > 0)
         {
             if (!_set.Contains(h))
                 return false;
-                
+
             _pending.Add(h);
             return true;
         }
@@ -54,7 +54,7 @@ internal sealed class TypedBucket<T> : IClearable
                 continue;
 
             Array.Copy(_handlers, i + 1, _handlers, i, _count - i - 1);
-            _handlers[--_count] = null!;
+            _handlers[--_count] = null;
             return true;
         }
         return true;
@@ -62,22 +62,20 @@ internal sealed class TypedBucket<T> : IClearable
 
     public void Fire(T evt)
     {
-        _firing = true;
+        _depth++;
 
         try
         {
-            for (int i = 0; i < _count; i++) 
+            for (int i = 0; i < _count; i++)
                 _handlers[i]?.Invoke(evt);
         }
         finally
         {
-            _firing = false;
-            
-            if (_pending.Count > 0)
+            if (--_depth == 0 && _pending.Count > 0)
             {
                 foreach (var h in _pending)
-                    DoRemove(h); 
-                
+                    DoRemove(h);
+
                 _pending.Clear();
             }
         }

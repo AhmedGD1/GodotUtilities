@@ -27,8 +27,13 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
     /// </summary>
     public bool Extensible { get; set; } = extensible;
 
+    /// <summary>The number of instances currently in use (retrieved and not yet released).</summary>
     public int ActiveCount => _active.Count;
+
+    /// <summary>The number of instances available for reuse.</summary>
     public int FreeCount => _free.Count;
+
+    /// <summary>The total number of instances tracked by the pool, active and free.</summary>
     public int TotalCount => ActiveCount + FreeCount;
 
     /// <summary>

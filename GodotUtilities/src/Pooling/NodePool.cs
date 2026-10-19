@@ -23,8 +23,13 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// </summary>
     public bool Extensible { get; set; } = true;
 
+    /// <summary>The number of nodes currently in use (retrieved and not yet released).</summary>
     public int ActiveCount => _active.Count;
+
+    /// <summary>The number of nodes available for reuse.</summary>
     public int FreeCount => _free.Count;
+
+    /// <summary>The total number of nodes tracked by the pool, active and free.</summary>
     public int TotalCount => ActiveCount + FreeCount;
 
     /// <summary>
@@ -189,8 +194,8 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     }
 
     /// <summary>
-    /// Deferred-frees free (non-active) nodes down to <paramref name="targetSize"/>, invoking
-    /// <see cref="IPoolable.OnRelease"/> and the optional <paramref name="onTrim"/> callback
+    /// Deferred-frees free (non-active) nodes down to <paramref name="targetSize"/>, 
+    /// and the optional <paramref name="onTrim"/> callback
     /// for each. Does not affect active nodes.
     /// </summary>
     /// <param name="targetSize">The maximum number of free nodes to retain.</param>

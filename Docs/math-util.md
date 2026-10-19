@@ -38,6 +38,7 @@ All of these draw from `MathUtil.RNG`.
 | `CoinFlip()` | 50/50 `bool`. |
 | `Chance(probability)` | `true` with the given probability (`0..1`); throws `ArgumentOutOfRangeException` outside that range. |
 | `PickRandom(items)` | A random element from a `params T[]` or an `IReadOnlyList<T>` (so `List<T>` and arrays work). Throws on an empty collection. |
+| `Shuffle(IList<T>)` | in place (Fisher-Yates) using MathUtil.RNG |
 
 ## The shared RNG
 

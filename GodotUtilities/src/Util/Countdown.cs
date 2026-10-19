@@ -27,18 +27,31 @@ public struct Countdown(double baseDuration)
 {
     private double _duration, _remaining;
 
+    /// <summary>Whether the countdown is stopped or has reached zero.</summary>
     public readonly bool IsFinished => _remaining <= 0.0;
 
+    /// <summary>The remaining time in seconds. Never below zero.</summary>
     public readonly double TimeLeft => Mathf.Max(0.0, _remaining);
 
+    /// <summary>
+    /// How far the countdown has advanced, from 0 (just started) to 1 (finished).
+    /// Returns 1 if the timer was never started or has a duration of zero.
+    /// </summary>
     public readonly float Progress => _duration != 0.0 ? (float)(1.0 - (_remaining / _duration)) : 1f;
 
+    /// <summary>Stops the countdown immediately, marking it as finished without it being reported by <see cref="Tick(double)"/>.</summary>
     public void Stop() => _remaining = 0.0;
 
+    /// <summary>Starts the countdown using the base duration given at construction.</summary>
     public void Start() => _remaining = _duration = baseDuration;
 
+    /// <summary>Starts the countdown using a custom duration.</summary>
+    /// <param name="sec">The duration in seconds.</param>
     public void Start(double sec) => _remaining = _duration = sec;
 
+    /// <summary>Starts the countdown with a random duration between the given bounds.</summary>
+    /// <param name="minDuration">The minimum duration in seconds.</param>
+    /// <param name="maxDuration">The maximum duration in seconds.</param>
     public void StartRandom(double minDuration, double maxDuration) => Start(GD.RandRange(minDuration, maxDuration));
 
     /// <summary>
@@ -71,3 +84,4 @@ public struct Countdown(double baseDuration)
         return false;
     }
 }
+

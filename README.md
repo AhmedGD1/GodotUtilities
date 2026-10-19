@@ -64,7 +64,6 @@ public partial class Hud : Control
 {
     [Node] private Label scoreLabel;
 
-    public override void _EnterTree() =>    
     public override void _Notification(int what)
     {
         if (what == NotificationSceneInstantiated)
@@ -95,7 +94,7 @@ Each feature has its own page under [`Docs/`](Docs/).
 | [`EventBus`](Docs/event-bus.md) | `GodotUtilities.Events` | Static, type-safe pub/sub, plus `[EventHandler]`/`WireEvents()` declarative wiring generated at compile time. |
 | [`[Node]` / `WireNodes()`](Docs/node-wiring.md) | `GodotUtilities` | Declarative scene-tree wiring: annotate fields/properties and let the generated `WireNodes()` resolve them — no `GetNode<T>()` boilerplate. |
 | [`ObjectPool<T>` / `NodePool<T>`](Docs/pooling.md) | `GodotUtilities.Pooling` | Generic object pooling, and scene-tree-aware node pooling from a `PackedScene`. |
-| [`SimpleStateMachine<T>`](Docs/simple-state-machine.md) | `GodotUtilitie.Logic` | Enum-keyed state machine with enter/update/exit callbacks and condition-based (including global) transitions. |
+| [`SimpleStateMachine<T>`](Docs/simple-state-machine.md) | `GodotUtilities.Logic` | Enum-keyed state machine with enter/update/exit callbacks and condition-based (including global) transitions. |
 | [`WeightedLootTable<T>`](Docs/weighted-loot-table.md) | `GodotUtilities.Logic` | Weighted random picks: single, conditional, and multi-pick with or without duplicates. |
 | [`Countdown`](Docs/countdown.md) | `GodotUtilities` | Lightweight, manually-ticked countdown struct for cooldowns. |
 | [`InputBuffer`](Docs/input-buffer.md) | `GodotUtilities` | Jump-buffer-style input windows. |
@@ -113,7 +112,7 @@ GodotUtilities/
 │       ├── Logic/         # SimpleStateMachine, WeightedLootTable
 │       ├── NodeWiring/    # [Node]
 │       ├── Pooling/       # ObjectPool, NodePool, IPoolable
-│       └── Util/          # Countdown, InputBuffer, MathUtil, FileSystem
+│       └── Util/          # Countdown, InputBuffer, MathUtil, FileSystem, TweenBuilder
 ├── SourceGenerators/      # Roslyn generators (netstandard2.0)
 │   ├── Event/             # [EventHandler] → WireEvents()  
 │   └── NodeWiring/        # [Node] → WireNodes()           
