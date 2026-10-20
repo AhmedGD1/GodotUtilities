@@ -62,6 +62,8 @@ public static class MathUtil
 
     #endregion
 
+    #region Random
+
     /// <summary>
     /// Returns a random unit-length 2D direction.
     /// </summary>
@@ -125,5 +127,14 @@ public static class MathUtil
             
         return RNG.Randf() < probability;
     }
-}
 
+    /// <summary>
+    /// Picks a random element from <paramref name="items"/> using <see cref="RNG"/>.
+    /// </summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <param name="items">The items to pick from. Must not be empty.</param>
+    /// <returns>A randomly selected element from <paramref name="items"/>.</returns>
+    public static T PickRandom<T>(params T[] items) => items[RNG.RandiRange(0, items.Length - 1)];
+
+    #endregion
+}
