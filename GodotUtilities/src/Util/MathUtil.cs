@@ -2,9 +2,6 @@ using Godot;
 
 namespace GodotUtilities;
 
-/// <summary>
-/// Math and random helpers for Godot, including framerate-independent interpolation and random sampling.
-/// </summary>
 public static class MathUtil
 {
     /// <summary>
