@@ -11,16 +11,11 @@ public static class MathUtil
     /// The shared random number generator used by all random helpers in this class.
     /// It is randomized on startup and replaced when <see cref="SeedRNG(ulong)"/> is called.
     /// </summary>
-    public static RandomNumberGenerator RNG { get; private set; } = new();
+    public static readonly RandomNumberGenerator RNG = new();
 
     static MathUtil() => RNG.Randomize();
 
-    /// <summary>
-    /// Replaces <see cref="RNG"/> with a new generator using the given seed,
-    /// making all following random results reproducible.
-    /// </summary>
-    /// <param name="seed">The seed for the new generator.</param>
-    public static void SeedRNG(ulong seed) => RNG = new() { Seed = seed };
+    public static void SeedRNG(ulong seed) => RNG.Seed = seed;
 
     #region Expo Lerp
 
@@ -66,8 +61,6 @@ public static class MathUtil
     public static double Clamp01(double value) => Mathf.Clamp(value, 0.0, 1.0);
 
     #endregion
-
-    #region Random
 
     /// <summary>
     /// Returns a random unit-length 2D direction.
@@ -132,32 +125,5 @@ public static class MathUtil
             
         return RNG.Randf() < probability;
     }
-
-    /// <summary>
-    /// Picks a random element from <paramref name="items"/> using <see cref="RNG"/>.
-    /// </summary>
-    /// <typeparam name="T">The element type.</typeparam>
-    /// <param name="items">The items to pick from. Must not be empty.</param>
-    /// <returns>A randomly selected element from <paramref name="items"/>.</returns>
-    public static T PickRandom<T>(params T[] items) => items[RNG.RandiRange(0, items.Length - 1)];
-
-    /// <inheritdoc cref="PickRandom{T}(T[])"/>
-    public static T PickRandom<T>(IReadOnlyList<T> items) => items[RNG.RandiRange(0, items.Count - 1)];
-
-    /// <summary>
-    /// Shuffles <paramref name="items"/> in place (Fisher-Yates) using <see cref="RNG"/>.
-    /// </summary>
-    public static void Shuffle<T>(IList<T> items)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-
-        for (int i = items.Count - 1; i > 0; i--)
-        {
-            int j = RNG.RandiRange(0, i);
-            (items[i], items[j]) = (items[j], items[i]);
-        }
-    }
-
-    #endregion
 }
 
