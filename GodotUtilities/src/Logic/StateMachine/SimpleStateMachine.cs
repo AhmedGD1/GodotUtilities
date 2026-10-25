@@ -23,9 +23,6 @@ public sealed class SimpleStateMachine<T> where T : Enum
     /// </summary>
     public event StateChangedEventHandler StateChanged;
 
-    private readonly Dictionary<T, State<T>> states = [];
-    private readonly List<Transition<T>> transitions = [];
-
     /// <summary>The active state, or <c>null</c> if no initial state has been set.</summary>
     public State<T> CurrentState { get; private set; }
 
@@ -45,10 +42,13 @@ public sealed class SimpleStateMachine<T> where T : Enum
     public bool Locked { get; set; } 
 
     /// <summary>All registered states, keyed by their id.</summary>
-    public IReadOnlyDictionary<T, State<T>> States => states;
+    public IReadOnlyDictionary<T, State<T>> States => _states;
 
     /// <summary>All registered transitions, in the order they are evaluated.</summary>
-    public IReadOnlyList<Transition<T>> Transitions => transitions;
+    public IReadOnlyList<Transition<T>> Transitions => _transitions;
+
+    private readonly Dictionary<T, State<T>> _states = [];
+    private readonly List<Transition<T>> _transitions = [];
 
     #region Tick
 
@@ -116,14 +116,14 @@ public sealed class SimpleStateMachine<T> where T : Enum
     {
         ArgumentNullException.ThrowIfNull(condition);
 
-        if (!states.ContainsKey(from) && !isGlobal)
+        if (!_states.ContainsKey(from) && !isGlobal)
             throw new ArgumentException($"No state registered for id '{from}'", nameof(from));
 
-        if (!states.ContainsKey(to))
+        if (!_states.ContainsKey(to))
             throw new ArgumentException($"No state registered for id '{to}'", nameof(to));
 
         var transition = new Transition<T>(from, to, condition, isGlobal);
-        transitions.Add(transition);
+        _transitions.Add(transition);
         return transition;
     }
 
@@ -134,7 +134,7 @@ public sealed class SimpleStateMachine<T> where T : Enum
 
         var currentId = CurrentState.Id;
 
-        foreach (var transition in transitions)
+        foreach (var transition in _transitions)
         {
             if (!EqualityComparer<T>.Default.Equals(transition.From, currentId) && !transition.IsGlobal)
                 continue;
@@ -165,11 +165,11 @@ public sealed class SimpleStateMachine<T> where T : Enum
     /// <exception cref="ArgumentException">A state with this id is already registered.</exception>
     public State<T> AddState(T id)
     {
-        if (states.ContainsKey(id))
+        if (_states.ContainsKey(id))
             throw new ArgumentException($"State with id '{id}' registered already");
 
         var state = new State<T>(id);
-        states[id] = state;
+        _states[id] = state;
         return state;
     }
 
@@ -202,7 +202,7 @@ public sealed class SimpleStateMachine<T> where T : Enum
         if (CurrentState is not null)
             throw new InvalidOperationException($"{nameof(SetInitialState)}() can't be called more than once.");
 
-        if (!states.ContainsKey(id))
+        if (!_states.ContainsKey(id))
             throw new ArgumentException($"No state registered for id '{id}'", nameof(id));
 
         SetState(id);
@@ -219,7 +219,7 @@ public sealed class SimpleStateMachine<T> where T : Enum
         PreviousState = CurrentState;
         StateElapsed = 0.0;
 
-        CurrentState = states[id];
+        CurrentState = _states[id];
         CurrentState.Enter?.Invoke();
 
         if (PreviousState is not null)
@@ -242,7 +242,7 @@ public sealed class SimpleStateMachine<T> where T : Enum
         return !Locked 
             && CurrentState is not null 
             && CurrentState.CanExit(StateElapsed)
-            && states.TryGetValue(to, out var nextState) 
+            && _states.TryGetValue(to, out var nextState) 
             && nextState.CanEnter(TotalElapsed)
             && !IsInState(to);
     }
@@ -266,7 +266,7 @@ public sealed class SimpleStateMachine<T> where T : Enum
     /// <summary>Gets a registered state by id.</summary>
     /// <param name="id">The state id to look up.</param>
     /// <returns>The state, or <c>null</c> if none is registered for <paramref name="id"/>.</returns>
-    public State<T> GetStateOrNull(T id) => states.TryGetValue(id, out var state) ? state : null;
+    public State<T> GetStateOrNull(T id) => _states.TryGetValue(id, out var state) ? state : null;
 
     #endregion
 }

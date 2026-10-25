@@ -13,8 +13,10 @@ namespace GodotUtilities.Pooling;
 /// <param name="root">The node new instances are parented under.</param>
 public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
 {
-    private readonly HashSet<T> _active = [];
-    private readonly Stack<T> _free = new();
+    /// <summary>
+    /// The node new instances are parented under.
+    /// </summary>
+    public Node Root { get; set; } = root;
 
     /// <summary>
     /// If <c>true</c>, <see cref="TryGet"/> instantiates a new node via
@@ -31,6 +33,10 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
 
     /// <summary>The total number of nodes tracked by the pool, active and free.</summary>
     public int TotalCount => ActiveCount + FreeCount;
+
+    private readonly HashSet<T> _active = [];
+    
+    private readonly Stack<T> _free = new();
 
     /// <summary>
     /// Eagerly instantiates <paramref name="count"/> nodes via <see cref="CreateNew"/> and
@@ -55,11 +61,11 @@ public class NodePool<T>(PackedScene packedScene, Node root) where T : Node
     /// <exception cref="NullReferenceException">The pool's root node has been freed.</exception>
     public T CreateNew()
     {
-        if (!GodotObject.IsInstanceValid(root))
+        if (!GodotObject.IsInstanceValid(Root))
             throw new NullReferenceException("Root node is freed and can't be used.");
 
         var instance = packedScene.Instantiate<T>();
-        root.AddChild(instance);
+        Root.AddChild(instance);
 
         SetActive(instance, false);
         return instance;

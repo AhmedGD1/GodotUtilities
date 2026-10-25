@@ -18,9 +18,6 @@ namespace GodotUtilities.Pooling;
 /// <param name="onRelease">Optional callback invoked with the instance whenever one is returned.</param>
 public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> onGet = null, Action<T> onRelease = null)
 {
-    private readonly HashSet<T> _active = [];
-    private readonly Stack<T> _free = new();
-
     /// <summary>
     /// If <c>true</c>, <see cref="TryGet"/> creates a new instance via the pool's factory
     /// when no free instance is available, instead of failing.
@@ -47,6 +44,10 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
         for (int i = 0; i < count; i++)
             _free.Push(factory());
     }
+
+    private readonly HashSet<T> _active = [];
+
+    private readonly Stack<T> _free = new();
 
     /// <summary>
     /// Attempts to retrieve an instance from the pool: a free instance if one is available,
@@ -173,3 +174,4 @@ public class ObjectPool<T>(Func<T> factory, bool extensible = true, Action<T> on
         _free.Clear();
     }
 }
+

@@ -5,6 +5,47 @@ namespace GodotUtilities;
 public static class ResourcePreloaderExtension
 {
     /// <summary>
+    /// Gets the resource with the given name, cast to <typeparamref name="T"/>.
+    /// </summary>
+    public static T GetResource<T>(this ResourcePreloader preloader, StringName name) where T : Resource
+    {
+        return (T)preloader.GetResource(name);
+    }
+
+    /// <summary>
+    /// Gets the resource named after <typeparamref name="T"/>, cast to <typeparamref name="T"/>.
+    /// </summary>
+    public static T GetResource<T>(this ResourcePreloader preloader) where T : Resource
+    {
+        return (T)preloader.GetResource(typeof(T).Name);
+    }
+
+    /// <summary>
+    /// Tries to get the resource with the given name, cast to <typeparamref name="T"/>.
+    /// </summary>
+    /// <returns><see langword="true"/> if the resource exists; otherwise <see langword="false"/>.</returns>
+    public static bool TryGetResource<T>(this ResourcePreloader preloader, StringName name, out T resource) where T : Resource
+    {
+        if (preloader.HasResource(name))
+        {
+            resource = default;
+            return false;
+        }
+
+        resource = preloader.GetResource<T>(name);
+        return true;
+    }
+
+    /// <summary>
+    /// Tries to get the resource named after <typeparamref name="T"/>, cast to <typeparamref name="T"/>.
+    /// </summary>
+    /// <returns><see langword="true"/> if the resource exists; otherwise <see langword="false"/>.</returns>
+    public static bool TryGetResource<T>(this ResourcePreloader preloader, out T resource) where T : Resource
+    {
+        return TryGetResource(preloader, typeof(T).Name, out resource);
+    }
+
+    /// <summary>
     /// Instantiates a <see cref="PackedScene"/> stored in the preloader under the given name
     /// and returns it as <typeparamref name="T"/>.
     /// </summary>
