@@ -102,22 +102,7 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
             }
         }
 
-        var chain = new List<EnclosingTypeInfo>();
-        var allEnclosingPartial = true;
-
-        for (var current = containingType; current is not null; current = current.ContainingType)
-        {
-            var isPartial = GodotSymbols.IsDeclaredPartial(current);
-            allEnclosingPartial &= isPartial;
-            chain.Add(new EnclosingTypeInfo(
-                current.Name,
-                GodotSymbols.GetDeclarationName(current),
-                GodotSymbols.GetHintName(current),
-                GetTypeKindKeyword(current),
-                isPartial));
-        }
-
-        chain.Reverse();
+        var chain = EnclosingTypes.Build(containingType, out var allEnclosingPartial);
 
         return new MemberModel(
             ContainingTypeName: containingType.Name,
@@ -128,7 +113,7 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
             ContainingTypeLocation: LocationInfo.From(containingType.Locations.FirstOrDefault()),
             ContainingIsPartial: allEnclosingPartial,
             ContainingDerivesFromNode: GodotSymbols.InheritsFromGodotNode(containingType),
-            EnclosingChain: new EquatableArray<EnclosingTypeInfo>(chain),
+            EnclosingChain: chain,
             MemberName: memberName,
             MemberTypeFullyQualified: memberType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).TrimEnd('?'),
             MemberTypeDisplayName: memberType.ToDisplayString(),
@@ -145,14 +130,6 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
     }
 
     private static string EscapeForStringLiteral(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
-
-    private static string GetTypeKindKeyword(INamedTypeSymbol type) => type.TypeKind switch
-    {
-        TypeKind.Struct when type.IsRecord => "record struct",
-        TypeKind.Struct => "struct",
-        TypeKind.Class when type.IsRecord => "record",
-        _ => "class",
-    };
 
     private static EquatableArray<TypeGroup> GroupByContainingType(
         ImmutableArray<MemberModel> members, CancellationToken ct)
@@ -290,15 +267,7 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
         }
 
         var baseIndent = hasNamespace ? "    " : "";
-        for (var i = 0; i < first.EnclosingChain.Count; i++)
-        {
-            var level = first.EnclosingChain[i];
-            var levelIndent = baseIndent + new string(' ', i * 4);
-            sb.Append(levelIndent).Append("partial ").Append(level.KindKeyword).Append(' ').Append(level.DeclarationName).AppendLine();
-            sb.Append(levelIndent).AppendLine("{");
-        }
-
-        var bodyIndent = baseIndent + new string(' ', first.EnclosingChain.Count * 4);
+        var bodyIndent = EnclosingTypes.AppendOpen(sb, baseIndent, first.EnclosingChain);
         var innerIndent = bodyIndent + "    ";
 
         AppendBlock(sb, bodyIndent, WireNodesPrologue);
@@ -310,20 +279,16 @@ public sealed class NodeWiringGenerator : IIncrementalGenerator
 
         sb.Append(bodyIndent).AppendLine("}");
 
-        for (var i = first.EnclosingChain.Count - 1; i >= 0; i--)
-        {
-            var levelIndent = baseIndent + new string(' ', i * 4);
-            sb.Append(levelIndent).AppendLine("}");
-        }
+        EnclosingTypes.AppendClose(sb, baseIndent, first.EnclosingChain);
 
         if (hasNamespace)
         {
             sb.AppendLine("}");
         }
 
-        var chainNames = string.Join(".", first.EnclosingChain.Select(e => e.HintName));
-        var hintName = (hasNamespace ? first.ContainingNamespace + "." : "") + chainNames + ".WireNodes.g.cs";
-        spc.AddSource(hintName, sb.ToString());
+        spc.AddSource(
+            EnclosingTypes.GetHintName(first.ContainingNamespace, first.EnclosingChain, "WireNodes.g.cs"),
+            sb.ToString());
     }
 
     private static string BuildAssignment(MemberModel model)

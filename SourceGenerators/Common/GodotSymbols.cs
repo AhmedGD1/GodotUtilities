@@ -23,6 +23,22 @@ internal static class GodotSymbols
         return false;
     }
 
+    public static bool InheritsFromGodotObject(ITypeSymbol? type)
+    {
+        for (var current = type; current is not null; current = current.BaseType)
+        {
+            if (current.Name == "GodotObject"
+                && current.ContainingNamespace is { IsGlobalNamespace: false } ns
+                && ns.Name == "Godot"
+                && ns.ContainingNamespace is { IsGlobalNamespace: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static bool IsDeclaredPartial(INamedTypeSymbol type)
     {
         var sawDeclaration = false;
@@ -47,4 +63,14 @@ internal static class GodotSymbols
 
     public static string GetHintName(INamedTypeSymbol type)
         => type.Arity == 0 ? type.Name : type.Name + "_G" + type.Arity;
+
+    /// <summary>The keyword(s) a type is declared with, so a partial declaration can repeat it ("class", "record struct", ...).</summary>
+    public static string GetTypeKindKeyword(INamedTypeSymbol type) => type.TypeKind switch
+    {
+        TypeKind.Struct when type.IsRecord => "record struct",
+        TypeKind.Struct => "struct",
+        TypeKind.Interface => "interface",
+        TypeKind.Class when type.IsRecord => "record",
+        _ => "class",
+    };
 }

@@ -1,12 +1,5 @@
 namespace GodotUtilities.SourceGenerators.NodeWiring;
 
-internal sealed record EnclosingTypeInfo(
-    string Name,
-    string DeclarationName,
-    string HintName,
-    string KindKeyword,
-    bool IsPartial);
-
 internal sealed record MemberModel(
     string ContainingTypeName,
     string ContainingTypeKey,
