@@ -1,6 +1,6 @@
 # GodotUtilities
 
-A collection of general-purpose C# utilities for Godot 4: extension methods, a type-safe event bus, object pooling, a small state machine, timers, weighted loot tables, and compile-time scene/event wiring powered by Roslyn source generators.
+A collection of general-purpose C# utilities for Godot 4: extension methods, a type-safe event bus, object pooling, a small state machine, timers, weighted loot tables, and compile-time scene/event wiring and signal shortcuts powered by Roslyn source generators.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ git clone https://github.com/AhmedGD1/GodotUtilities.git
 
 **2. Reference it from your game's `.csproj`.**
 
-Open your Godot project's `.csproj` (same name as your project, in the project root) and add **two** `ProjectReference`s inside an `<ItemGroup>` — one for the library itself, one for its source generators (which power `[EventHandler]`/`WireEvents()` and `[Node]`/`WireNodes()`). The generators have to be referenced separately with `OutputItemType="Analyzer"` because a `ProjectReference` doesn't forward analyzer references transitively:
+Open your Godot project's `.csproj` (same name as your project, in the project root) and add **two** `ProjectReference`s inside an `<ItemGroup>` — one for the library itself, one for its source generators (which power `[EventHandler]`/`WireEvents()`, `[Node]`/`WireNodes()` and the `[Signal]` shortcuts). The generators have to be referenced separately with `OutputItemType="Analyzer"` because a `ProjectReference` doesn't forward analyzer references transitively:
 
 ```xml
 <ItemGroup>
@@ -34,7 +34,7 @@ Open your Godot project's `.csproj` (same name as your project, in the project r
 </ItemGroup>
 ```
 
-Adjust the paths to wherever you actually cloned it, relative to your `.csproj`. If you skip the `SourceGenerators` reference, everything except `[EventHandler]`/`WireEvents()` and `[Node]`/`WireNodes()` still works — those generated methods just won't be emitted.
+Adjust the paths to wherever you actually cloned it, relative to your `.csproj`. If you skip the `SourceGenerators` reference, everything except `[EventHandler]`/`WireEvents()`, `[Node]`/`WireNodes()` and the `[Signal]` shortcuts still works — those generated methods just won't be emitted.
 
 **3. Build.**
 
@@ -93,6 +93,7 @@ Each feature has its own page under [`Docs/`](Docs/).
 | [Extension methods](Docs/extensions.md) | `GodotUtilities` | Helpers on `Node`, `SceneTree`, `PackedScene`, `Control`, `AnimationPlayer`, `AnimatedSprite2D`, `Tween`/`PropertyTweener` (easing shorthand, property tweens), `CharacterBody2D`/`3D`, `GpuParticles2D`/`3D`, `Camera3D`, `World2D`/`3D` raycasts & shape queries, vectors, `Basis`, `Color`, `bool`, `Resource` and more. |
 | [`EventBus`](Docs/event-bus.md) | `GodotUtilities.Events` | Static, type-safe pub/sub, plus `[EventHandler]`/`WireEvents()` declarative wiring generated at compile time. |
 | [`[Node]` / `WireNodes()`](Docs/node-wiring.md) | `GodotUtilities` | Declarative scene-tree wiring: annotate fields/properties and let the generated `WireNodes()` resolve them — no `GetNode<T>()` boilerplate. |
+| [`[Signal]` shortcuts](Docs/signal-shortcuts.md) | generated on your class | `ConnectToX` / `DisconnectFromX` / `IsConnectedToX` / `ToSignalX` for every `[Signal]` delegate: `Action` handlers, connect flags, and `await`-able signals. No `using` needed. |
 | [`ObjectPool<T>` / `NodePool<T>`](Docs/pooling.md) | `GodotUtilities.Pooling` | Generic object pooling, and scene-tree-aware node pooling from a `PackedScene`. |
 | [`SimpleStateMachine<T>`](Docs/simple-state-machine.md) | `GodotUtilities.Logic` | Enum-keyed state machine with enter/update/exit callbacks and condition-based (including global) transitions. |
 | [`WeightedLootTable<T>`](Docs/weighted-loot-table.md) | `GodotUtilities.Logic` | Weighted random picks: single, conditional, and multi-pick with or without duplicates. |
@@ -114,8 +115,9 @@ GodotUtilities/
 │       ├── Pooling/       # ObjectPool, NodePool, IPoolable
 │       └── Util/          # Countdown, InputBuffer, MathUtil, FileSystem, TweenBuilder
 ├── SourceGenerators/      # Roslyn generators (netstandard2.0)
-│   ├── Event/             # [EventHandler] → WireEvents()  
-│   └── NodeWiring/        # [Node] → WireNodes()           
+│   ├── Event/             # [EventHandler] → WireEvents()
+│   ├── NodeWiring/        # [Node] → WireNodes()
+│   └── Signal/            # [Signal] → ConnectTo/DisconnectFrom/IsConnectedTo/ToSignal
 └── Docs/                  # per-feature documentation
 ```
 
