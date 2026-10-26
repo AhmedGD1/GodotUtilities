@@ -34,7 +34,7 @@ public override void _PhysicsProcess(double delta)
     _fsm.Update(delta);
 
     if (Input.IsActionJustPressed("jump"))
-        _fsm.ChangeState(PlayerState.Jump);
+        _fsm.TryChangeState(PlayerState.Jump);
 }
 ```
 
@@ -42,8 +42,9 @@ public override void _PhysicsProcess(double delta)
 
 - `AddState(id)` — registers a new state under an enum value and returns a `State<T>` builder; throws `ArgumentException` if `id` is already registered. Chain `.OnEnter(...)`, `.OnUpdate(delta => ...)`, `.OnExit(...)` on the result to attach callbacks (all optional). Setting a callback again replaces the previous one.
 - `SetInitialState(id)` — sets the starting state and invokes its `OnEnter`, without raising `StateChanged` (there's no "previous" state). **Call it exactly once, before `Update`/`ChangeState`**: a second call throws `InvalidOperationException`, and throws `ArgumentException` if `id` isn't registered.
-- `ChangeState(id)` — exits the current state (`OnExit`), enters the new one (`OnEnter`), resets `StateElapsed` to `0`, and raises `StateChanged`. Returns `true` if the state changed and `false` if the change was refused (see [Can the state change?](#can-the-state-change)). It never throws: an unregistered `id`, a locked machine, or calling it before `SetInitialState` all just return `false`.
-- **Self-transitions are allowed.** `ChangeState(current)` restarts the state: `OnExit`, reset `StateElapsed`, `OnEnter`, and `StateChanged` fires with identical previous and current ids.
+- `TryChangeState(id)` — the conditional change: it only switches if [`CanChangeState(id)`](#can-the-state-change) allows it, then exits the current state (`OnExit`), enters the new one (`OnEnter`), resets `StateElapsed` to `0`, and raises `StateChanged`. Returns `true` if the state changed and `false` if the change was refused (locked machine, minimum duration not reached, cooldown running, `id` not registered, `id` already the current state, or no initial state yet). It never throws. Use this for gameplay input and anything that should respect the state's timing rules.
+- `ChangeState(id)` — the forced change: switches **unconditionally**, ignoring `Locked`, the current state's minimum duration and the target's cooldown. Throws `InvalidOperationException` if no initial state has been set and `ArgumentException` if `id` isn't registered. Use it for things that must win (death, stun, a cutscene reset).
+- **Restarting a state.** `ChangeState(current)` restarts the state: `OnExit`, reset `StateElapsed`, `OnEnter`, and `StateChanged` fires with identical previous and current ids. `TryChangeState(current)` returns `false`, and automatic transitions never target the state you're already in, so a global transition like `AddGlobalTransition(Dead, () => Health <= 0)` fires once instead of restarting `Dead` every frame.
 - `Update(delta)` — call once per frame/physics tick. Adds `delta` to `StateElapsed` and `TotalElapsed`, invokes the current state's `OnUpdate`, then evaluates transitions. Does nothing until an initial state is set.
 - `GetStateOrNull(id)` — returns the registered `State<T>` for `id`, or `null`.
 
@@ -57,13 +58,13 @@ _fsm.AddState(PlayerState.Dash)
     .SetCooldown(1.0);     // can't re-enter Dash until 1s after leaving it
 ```
 
-- `SetMinDuration(seconds)` — the state must have been active for at least this long before the machine can leave it. It gates **both** automatic transitions and manual `ChangeState` calls.
+- `SetMinDuration(seconds)` — the state must have been active for at least this long before the machine can leave it. It gates automatic transitions and `TryChangeState`; a forced `ChangeState` ignores it.
 - `SetCooldown(seconds)` — after leaving the state, it can't be entered again until this much time has passed. The cooldown is measured from the moment the state is exited, using `TotalElapsed`, so it only advances while `Update` runs. A state that has never been left is always enterable.
-- With self-transitions, a state's cooldown starts the moment it exits to restart itself, so it can't be restarted again until the cooldown has passed.
+- A forced `ChangeState` ignores cooldowns, but leaving a state that way still starts its cooldown, so automatic transitions can't re-enter it until the cooldown has passed.
 
 ## Transitions
 
-Instead of calling `ChangeState` yourself, register conditions and let `Update` do it:
+Instead of calling `TryChangeState` yourself, register conditions and let `Update` do it:
 
 ```csharp
 public enum EnemyState { Idle, Chase, Attack, Stunned, Dead }
@@ -98,12 +99,13 @@ _fsm.SetInitialState(EnemyState.Idle);
 3. The current state's `MinDuration` has passed.
 4. `to` is a registered state.
 5. `to`'s `Cooldown` has elapsed.
+6. `to` isn't already the current state.
 
-`ChangeState` and transition evaluation both use it, so you can call it yourself to check ahead of time (for example to grey out a button or avoid starting an animation that would be refused).
+`TryChangeState` and transition evaluation both use it (a forced `ChangeState` skips it), so you can call it yourself to check ahead of time (for example to grey out a button or avoid starting an animation that would be refused).
 
 ## Queries and state
 
-- `Locked` — when `true`, `ChangeState` returns `false` and transitions aren't evaluated (useful for freezing transitions during a cutscene or hitstop). `Update` still runs the current `OnUpdate` and accumulates `StateElapsed` and `TotalElapsed`.
+- `Locked` — when `true`, `TryChangeState` returns `false` and transitions aren't evaluated, though a forced `ChangeState` still works (useful for freezing transitions during a cutscene or hitstop). `Update` still runs the current `OnUpdate` and accumulates `StateElapsed` and `TotalElapsed`.
 - `CurrentState` / `PreviousState` — the `State<T>` instances themselves (or `null`); `GetCurrentId()` / `GetPreviousId()` return just the enum value (`default` if unset, which for an enum looks like its first member, so check `CurrentState`/`PreviousState` for `null` if that distinction matters).
 - `IsInState(id)` — `true` if `id` is the current state.
 - `StateElapsed` — seconds since the current state was entered. It's reset *after* `OnExit` runs and *before* the new `OnEnter`, so inside `OnExit` it still holds the time spent in the state being left.

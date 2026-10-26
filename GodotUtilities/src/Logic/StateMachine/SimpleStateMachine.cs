@@ -5,7 +5,7 @@ namespace GodotUtilities.Logic;
 /// enter, update, and exit callbacks, and conditional transitions are evaluated after each update.
 /// </summary>
 /// <remarks>
-/// Avoid calling <see cref="ChangeState(T)"/> from enter or exit callbacks.
+/// Avoid calling <see cref="ChangeState(T)"/> or <see cref="TryChangeState(T)"/> from enter or exit callbacks.
 /// </remarks>
 /// <typeparam name="T">The enum type that identifies states.</typeparam>
 public sealed class SimpleStateMachine<T> where T : Enum
@@ -18,7 +18,7 @@ public sealed class SimpleStateMachine<T> where T : Enum
     public delegate void StateChangedEventHandler(T previousState, T currentState);
     
     /// <summary>
-    /// Raised after the state changes, including when a state transitions to itself.
+    /// Raised after the state changes, including when <see cref="ChangeState(T)"/> restarts the current state.
     /// It is not raised for the initial state.
     /// </summary>
     public event StateChangedEventHandler StateChanged;
@@ -36,8 +36,8 @@ public sealed class SimpleStateMachine<T> where T : Enum
     public double TotalElapsed { get; private set; }
 
     /// <summary>
-    /// If <c>true</c>, the state cannot change: transitions are not taken and
-    /// <see cref="ChangeState(T)"/> returns <c>false</c>.
+    /// If <c>true</c>, the state cannot change automatically: transitions are not taken and
+    /// <see cref="TryChangeState(T)"/> returns <c>false</c>. <see cref="ChangeState(T)"/> ignores it.
     /// </summary>
     public bool Locked { get; set; } 
 
@@ -145,11 +145,8 @@ public sealed class SimpleStateMachine<T> where T : Enum
             if (!CanChangeState(transition.To))
                 continue;
 
-            if (transition.Condition())
-            {
-                ChangeState(transition.To);
+            if (transition.Condition() && TryChangeState(transition.To))
                 return;
-            }
         }
     }
 
@@ -174,20 +171,40 @@ public sealed class SimpleStateMachine<T> where T : Enum
     }
 
     /// <summary>
-    /// Switches to the given state, running the exit callback of the old state and the enter
-    /// callback of the new one. Changing to the current state restarts it.
+    /// Switches to the given state only if <see cref="CanChangeState(T)"/> allows it, running the exit
+    /// callback of the old state and the enter callback of the new one. Never throws.
     /// </summary>
     /// <param name="id">The id of the state to switch to.</param>
     /// <returns>
     /// <c>true</c> if the state changed; <c>false</c> if the change was refused (see <see cref="CanChangeState(T)"/>).
     /// </returns>
-    public bool ChangeState(T id)
+    public bool TryChangeState(T id)
     {
         if (!CanChangeState(id))
             return false;
 
         SetState(id);
         return true;
+    }
+
+    /// <summary>
+    /// Switches to the given state unconditionally, running the exit callback of the old state and the
+    /// enter callback of the new one. Ignores <see cref="Locked"/>, the current state's minimum duration
+    /// and the target's cooldown. Changing to the current state restarts it (exit, reset
+    /// <see cref="StateElapsed"/>, enter) and raises <see cref="StateChanged"/> with identical ids.
+    /// </summary>
+    /// <param name="id">The id of the state to switch to.</param>
+    /// <exception cref="InvalidOperationException">No initial state has been set.</exception>
+    /// <exception cref="ArgumentException">No state is registered for <paramref name="id"/>.</exception>
+    public void ChangeState(T id)
+    {
+        if (CurrentState is null)
+            throw new InvalidOperationException($"{nameof(SetInitialState)}() must be called before {nameof(ChangeState)}().");
+
+        if (!_states.ContainsKey(id))
+            throw new ArgumentException($"No state registered for id '{id}'", nameof(id));
+
+        SetState(id);
     }
 
     /// <summary>
@@ -233,7 +250,9 @@ public sealed class SimpleStateMachine<T> where T : Enum
     /// <summary>
     /// Checks whether the machine can switch to the given state right now. This requires the machine
     /// to be unlocked and started, the current state's minimum duration to have passed,
-    /// the target to be registered, and the target's cooldown to have elapsed.
+    /// the target to be registered, the target's cooldown to have elapsed, and the target to be
+    /// a different state from the current one. <see cref="TryChangeState(T)"/> and transition
+    /// evaluation use it; <see cref="ChangeState(T)"/> does not.
     /// </summary>
     /// <param name="to">The id of the target state.</param>
     /// <returns><c>true</c> if a change to <paramref name="to"/> is allowed; otherwise <c>false</c>.</returns>

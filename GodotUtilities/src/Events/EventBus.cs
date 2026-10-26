@@ -69,6 +69,7 @@ public static class EventBus
     {
         foreach (var b in _buckets.Values) ((IClearable)b).Clear();
         _buckets.Clear();
+        _wired.Clear();
     }
 
     /// <summary>Clears all listeners for <typeparamref name="T"/> only.</summary>

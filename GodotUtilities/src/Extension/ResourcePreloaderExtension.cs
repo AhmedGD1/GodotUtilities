@@ -26,7 +26,7 @@ public static class ResourcePreloaderExtension
     /// <returns><see langword="true"/> if the resource exists; otherwise <see langword="false"/>.</returns>
     public static bool TryGetResource<T>(this ResourcePreloader preloader, StringName name, out T resource) where T : Resource
     {
-        if (preloader.HasResource(name))
+        if (!preloader.HasResource(name))
         {
             resource = default;
             return false;

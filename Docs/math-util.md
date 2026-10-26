@@ -37,13 +37,13 @@ All of these draw from `MathUtil.RNG`.
 | `RandomPointInSphere(radius)` | A random `Vector3` inside a sphere of that radius around the origin, uniformly distributed by volume. |
 | `CoinFlip()` | 50/50 `bool`. |
 | `Chance(probability)` | `true` with the given probability (`0..1`); throws `ArgumentOutOfRangeException` outside that range. |
-| `PickRandom(items)` | A random element from a `params T[]` or an `IReadOnlyList<T>` (so `List<T>` and arrays work). Throws on an empty collection. |
+| `PickRandom(item1, item2, etc.)` | A random element from a `params T[]`. Throws on an empty collection. |
 | `Shuffle(IList<T>)` | in place (Fisher-Yates) using MathUtil.RNG |
 
 ## The shared RNG
 
 - `RNG` — the shared `RandomNumberGenerator` instance used by all the random methods above. It is randomized when `MathUtil` is first used.
-- `SeedRNG(seed)` — replaces `RNG` with a new generator using that seed, so future random calls are deterministic (e.g. for reproducible runs/tests). Because it's a *new* instance, don't cache `MathUtil.RNG` in a field if you plan to reseed — read it again, or pass your own generator where an API accepts one (see [`WeightedLootTable<T>`](weighted-loot-table.md), which falls back to `MathUtil.RNG` at pick time).
+- `SeedRNG(seed)` — replaces `RNG` seed with a new one.
 
 Some Godot-backed helpers elsewhere use Godot's global random functions instead and aren't affected by `SeedRNG` — for example [`Countdown.StartRandom`](countdown.md).
 
