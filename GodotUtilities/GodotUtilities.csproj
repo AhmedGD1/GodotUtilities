@@ -8,6 +8,7 @@
 
   <PropertyGroup>
       <GenerateDocumentationFile>true</GenerateDocumentationFile>
+      <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
       <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   
