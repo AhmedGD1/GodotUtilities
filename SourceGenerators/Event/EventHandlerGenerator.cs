@@ -16,8 +16,6 @@ public sealed class EventHandlerGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Step 1: one small, value-equatable model per [EventHandler] method. Roslyn caches this per
-        // method, so editing an unrelated file doesn't re-run it.
         var candidates = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 EventHandlerAttributeFullName,
@@ -26,8 +24,6 @@ public sealed class EventHandlerGenerator : IIncrementalGenerator
             .Where(static c => c is not null)
             .Select(static (c, _) => c!);
 
-        // Step 2: group per class using only plain data. The result compares by value, so when no
-        // handler changed, the output step below is skipped entirely.
         var models = candidates
             .Collect()
             .Select(static (all, ct) => BuildModels(all, ct));
@@ -121,7 +117,6 @@ public sealed class EventHandlerGenerator : IIncrementalGenerator
             list.Add(candidate);
         }
 
-        // Deterministic order regardless of which file Roslyn happened to hand us first.
         var keys = groups.Keys.ToList();
         keys.Sort(StringComparer.Ordinal);
 
