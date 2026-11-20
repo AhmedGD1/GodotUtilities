@@ -14,7 +14,7 @@
 
     <!-- NuGet metadata -->
     <PackageId>Saku.GodotUtilities</PackageId>
-    <Version>3.6.0</Version>
+    <Version>3.6.1</Version>
     <Authors>Saku</Authors>
     <Description>
       A collection of general-purpose C# utilities and Roslyn source generators for Godot.
