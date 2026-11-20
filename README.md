@@ -6,13 +6,41 @@ A collection of general-purpose C# utilities for Godot 4: extension methods, a t
 
 - Godot 4 (.NET build). The library targets `net8.0` and is built against `GodotSharp` 4.7.2.
 - `FileSystem` uses `ResourceLoader.ListDirectory`, which needs Godot 4.4 or newer.
-- The source generators live in a separate `netstandard2.0` project (Roslyn `Microsoft.CodeAnalysis.CSharp` 4.8.0) — see [Setup](#setup).
+- The source generators live in a separate `netstandard2.0` project (Roslyn `Microsoft.CodeAnalysis.CSharp` 4.8.0).
 
 ## Setup
 
-This library isn't published as a NuGet package — you add it to your Godot project as a source dependency (`ProjectReference`s to its `.csproj` files), so it builds alongside your game and you can step into or edit it directly.
+You can install GodotUtilities in either of two ways.
 
-**1. Clone it outside your project.**
+### Option 1: NuGet (Recommended)
+
+Install the package directly into your Godot C# project:
+
+```bash
+dotnet add package Saku.GodotUtilities
+```
+
+Or add the package reference manually to your project's `.csproj`:
+
+```xml
+<ItemGroup>
+  <PackageReference Include="Saku.GodotUtilities" Version="3.6.1" />
+</ItemGroup>
+```
+
+The package includes the Roslyn source generators, so you don't need to reference the `SourceGenerators` project separately.
+
+Build your project as usual. The library and its source generators will be available automatically.
+
+**Updating:** Run `dotnet add package Saku.GodotUtilities` to install the latest version, or update the package version in your `.csproj`.
+
+[View the package on NuGet.org](https://www.nuget.org/packages/Saku.GodotUtilities).
+
+### Option 2: Source Dependency
+
+Use this option if you want to modify the library itself, debug its implementation, or step directly into its source.
+
+**1. Clone the repository outside your project.**
 
 Clone it next to your Godot project (not inside it, to keep Godot's filesystem dock from scanning its contents):
 
@@ -22,7 +50,7 @@ git clone https://github.com/AhmedGD1/GodotUtilities.git
 
 **2. Reference it from your game's `.csproj`.**
 
-Open your Godot project's `.csproj` (same name as your project, in the project root) and add **two** `ProjectReference`s inside an `<ItemGroup>` — one for the library itself, one for its source generators (which power `[EventHandler]`/`WireEvents()`, `[Node]`/`WireNodes()`, the `[Signal]` shortcuts and `[Singleton]`). The generators have to be referenced separately with `OutputItemType="Analyzer"` because a `ProjectReference` doesn't forward analyzer references transitively:
+Open your Godot project's `.csproj` (same name as your project, in the project root) and add two `ProjectReference`s inside an `<ItemGroup>` — one for the library itself, one for its source generators:
 
 ```xml
 <ItemGroup>
@@ -40,16 +68,7 @@ Adjust the paths to wherever you actually cloned it, relative to your `.csproj`.
 
 From Godot, build the project as usual (or `dotnet build` from the command line). Godot's C# build picks up both references automatically — no import step needed.
 
-**4. Use it.**
-
-```csharp
-using GodotUtilities;
-using GodotUtilities.Events;  // EventBus, [EventHandler]
-using GodotUtilities.Logic;   // WeightedLootTable<T>, SimpleStateMachine<T>
-using GodotUtilities.Pooling; // ObjectPool<T>, NodePool<T>, IPoolable
-```
-
-> **Updating:** since this is a `ProjectReference` and not a package, updating just means running `git pull` inside wherever you cloned it — no reinstall needed.
+**Updating:** Run `git pull` inside the cloned repository.
 
 ## Quick example
 
@@ -67,11 +86,11 @@ public partial class Hud : Control
     public override void _Notification(int what)
     {
         if (what == NotificationSceneInstantiated)
-            WireNodes(); // generated from [Node]
+            WireNodes();
 
         if (what == NotificationEnterTree)
-            WireEvents(); // generated from [EventHandler]
-    }        
+            WireEvents();
+    }
 
     [EventHandler]
     private void OnPlayerDied(PlayerDiedEvent evt)
@@ -105,7 +124,7 @@ Each feature has its own page under [`Docs/`](Docs/).
 
 ## Repository layout
 
-```
+```text
 GodotUtilities/
 ├── GodotUtilities/        # the library (assembly: Saku.GodotUtilities, net8.0)
 │   └── src/
@@ -118,7 +137,7 @@ GodotUtilities/
 │       └── Util/          # Countdown, InputBuffer, MathUtil, FileSystem, TweenBuilder
 ├── SourceGenerators/      # Roslyn generators (netstandard2.0)
 │   ├── Event/             # [EventHandler] → WireEvents()
-│   ├── NodeWiring/        # [Node] → WireNodes()
+│   ├── NodeWiring/       # [Node] → WireNodes()
 │   ├── Signal/            # [Signal] → ConnectTo/DisconnectFrom/IsConnectedTo/ToSignal
 │   └── Singleton/         # [Singleton] → Instance/HasInstance/TryGetInstance
 └── Docs/                  # per-feature documentation
