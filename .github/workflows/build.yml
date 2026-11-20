@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   build:
@@ -32,3 +32,10 @@ jobs:
 
       - name: Run Tests (if applicable)
         run: dotnet test --configuration Release --no-build --verbosity normal
+
+      - name: Verify NuGet Package
+        run: |
+         dotnet pack GodotUtilities/GodotUtilities.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts

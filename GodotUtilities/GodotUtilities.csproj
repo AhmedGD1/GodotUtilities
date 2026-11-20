@@ -1,22 +1,65 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
+    <!-- Build configuration -->
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>GodotUtilities</RootNamespace>
     <AssemblyName>Saku.GodotUtilities</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- NuGet metadata -->
+    <PackageId>Saku.GodotUtilities</PackageId>
+    <Version>3.6.0</Version>
+    <Authors>Saku</Authors>
+    <Description>
+      A collection of general-purpose C# utilities and Roslyn source generators for Godot.
+    </Description>
+
+    <PackageTags>Godot;GodotEngine;CSharp;Utilities;SourceGenerators</PackageTags>
+
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <RepositoryUrl>https://github.com/AhmedGD1/GodotUtilities</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/AhmedGD1/GodotUtilities</PackageProjectUrl>
+
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
   </PropertyGroup>
 
-  <PropertyGroup>
-      <GenerateDocumentationFile>true</GenerateDocumentationFile>
-      <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
-      <NoWarn>$(NoWarn);CS1591</NoWarn>
-  </PropertyGroup>
-  
   <ItemGroup>
+    <!-- Godot dependency -->
     <PackageReference Include="GodotSharp" Version="4.7.2" />
 
-    <ProjectReference Include="..\SourceGenerators\SourceGenerators.csproj"
-                    OutputItemType="Analyzer"
-                    ReferenceOutputAssembly="false" />
+    <!-- Source generator project -->
+    <ProjectReference
+      Include="..\SourceGenerators\SourceGenerators.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Package README -->
+    <None Include="..\README.md"
+          Pack="true"
+          PackagePath="\" />
+
+    <!-- Package license -->
+    <None Include="..\LICENSE"
+          Pack="true"
+          PackagePath="\" />
+
+    <!-- Package the source generator -->
+    <None Include="..\SourceGenerators\bin\$(Configuration)\netstandard2.0\SourceGenerators.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs/"
+          Visible="false" />
+  </ItemGroup>
+
 </Project>
